@@ -1,6 +1,9 @@
 /***************************************************
- * TypeScript Implementation of a Dense Mycelium
- * with Filler Filaments + Main Branches + Secondary
+ * TypeScript Implementation:
+ * Only lines growing from the center (main) or
+ * branching off existing lines (secondary).
+ * 
+ * No filler filaments from random positions!
  ***************************************************/
 
 //--------------------------------------
@@ -95,63 +98,82 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 //--------------------------------------
-// 3) Growth Parameters
+// 3) Main Growth Parameters
 //--------------------------------------
 
-/** Fill the entire radius of the mycelium circle with minimal black showing. */
+/** Large radius, close to full window size */
 const growthRadius = Math.min(canvas.width, canvas.height) * 0.45;
 
 /** 
- * We allow a very high density so we don't stop
- * drawing filaments early. This ensures we fill 
- * the circle as much as possible. 
+ * High density limit so filaments rarely stop 
+ * due to local overcrowding. 
  */
 const maxDensity = 9999;  
-
-/** Cell size for density map (finer = fewer collisions). */
-const cellSize = 15;
+const cellSize = 15; // Grid size for density map
 
 /** 
- * Main branch parameters 
- * - More main branches -> more bold lines 
- * - Also has secondary branching
+ * Many main branches from the center 
+ * => more coverage of the circle
  */
-const mainBranchCount = 25;  
-const secondaryBranchChance = 0.9;
+const mainBranchCount = 40;  
+
+/** 
+ * Probability that each step of a main branch 
+ * spawns a secondary branch. 
+ * => High => fill interior 
+ */
+const secondaryBranchChance = 0.95;
+
+/** 
+ * Variation of angle for secondaries 
+ * => a wide range so they can splay out 
+ */
 const secondaryBranchAngleVariance = Math.PI / 2;
-const secondaryBranchDecay = 0.8;
-const secondaryBranchSteps = 20;
 
 /** 
- * Filler filaments 
- * - Large number to fill in the circle 
- * - Each filament is short & faint 
+ * Secondary length is a fraction of the main 
  */
-const fillerFilamentCount = 3000; 
+const secondaryBranchDecay = 0.8;
 
-/** Fade near edge of circle. */
+/** 
+ * Number of segments in each secondary branch 
+ */
+const secondaryBranchSteps = 30;
+
+/** 
+ * Fade near edge 
+ */
 const fadeStartRadiusFactor = 0.9;
 const fadeEndRadiusFactor = 1.0;
 
-/** Shadow for filament glow. */
+/** 
+ * Glow effect 
+ */
 const shadowBlurAmount = 6;
 const shadowColor = "rgba(255, 255, 255, 0.5)";
 
-/** Radial gradient overlay at the end. */
+/** 
+ * Radial gradient overlay 
+ */
 const gradientInnerOpacity = 0.2;
 const gradientOuterOpacity = 0.8;
 
-/** Perlin noise. */
+/** 
+ * Perlin noise 
+ */
 const PERLIN_SCALE = 0.02;
 const ANGLE_DRIFT_STRENGTH = 0.15;
 const WIGGLE_STRENGTH = 3;
 
-/** Create global perlin instance. */
+/** 
+ * Create global perlin instance 
+ */
 const perlin = new Perlin();
 
 //--------------------------------------
 // 4) Density Map
 //--------------------------------------
+
 const densityMap = new Map<string, number>();
 
 function getDensityKey(x: number, y: number): string {
@@ -174,19 +196,19 @@ function getDensity(x: number, y: number): number {
 // 5) Filament Drawing
 //--------------------------------------
 
-type GrowthType = "main" | "secondary" | "filler";
+type GrowthType = "main" | "secondary";
 
 /**
- * Draws a single filament using Perlin noise for curvature.
+ * Draws a single filament using Perlin for curvature.
  * 
  * @param ctx 2D Rendering Context
- * @param startX The starting X coordinate
- * @param startY The starting Y coordinate
- * @param angle Initial angle in radians
- * @param length Total length of this filament
- * @param branchFactor If > 0, can spawn secondaries (main only)
- * @param depth How deep we are in the branch hierarchy
- * @param growthType "main" | "secondary" | "filler"
+ * @param startX Start X
+ * @param startY Start Y
+ * @param angle Initial angle
+ * @param length Total length
+ * @param branchFactor # times we can still spawn secondaries
+ * @param depth Depth in the branch hierarchy
+ * @param growthType "main" or "secondary"
  */
 function drawFilament(
   ctx: CanvasRenderingContext2D,
@@ -197,45 +219,29 @@ function drawFilament(
   branchFactor: number,
   depth: number,
   growthType: GrowthType
-) {
+): void {
   if (length < 1 || depth <= 0) return;
 
-  // Steps in the filament
-  let steps: number;
-  if (growthType === "main") {
-    steps = 30;  
-  } else if (growthType === "secondary") {
-    steps = secondaryBranchSteps;
-  } else {
-    // filler filaments can be shorter
-    steps = 10;
-  }
+  // Higher step counts => more lines filling space
+  const steps = growthType === "main" ? 60 : secondaryBranchSteps;
 
-  // Base line width depends on growthType
+  // Base line width & alpha
   let baseLineWidth = 1.0;
   let baseAlpha = 0.3;
 
-  // "main" branches => thicker lines, more opaque
   if (growthType === "main") {
-    baseLineWidth = Math.max(2.5 - depth * 0.1, 1.0);
+    baseLineWidth = Math.max(3.0 - depth * 0.1, 1.0);
     baseAlpha = 0.85;
-  } 
-  // "secondary" => slightly thinner, but fairly visible
-  else if (growthType === "secondary") {
-    baseLineWidth = Math.max(1.8 - depth * 0.1, 0.5);
+  } else {
+    baseLineWidth = Math.max(2.0 - depth * 0.1, 0.5);
     baseAlpha = 0.7;
-  }
-  // "filler" => thin, faint
-  else if (growthType === "filler") {
-    baseLineWidth = 0.8;
-    baseAlpha = 0.2; 
   }
 
   let currentX = startX;
   let currentY = startY;
 
   for (let i = 1; i <= steps; i++) {
-    // Each step is part of the total length, with some random factor
+    // Each step length has some randomness
     const stepLength = (length / steps) * (0.8 + Math.random() * 0.4);
 
     // Perlin-based angle drift
@@ -243,7 +249,7 @@ function drawFilament(
     const angleDrift = noiseVal * ANGLE_DRIFT_STRENGTH;
     angle += angleDrift;
 
-    // Perlin-based wiggle (perpendicular)
+    // Perlin-based perpendicular wiggle
     const noiseVal2 = perlin.noise2D(
       (currentX + 1000) * PERLIN_SCALE,
       (currentY + 1000) * PERLIN_SCALE
@@ -253,11 +259,11 @@ function drawFilament(
     currentX += Math.cos(angle) * stepLength + Math.cos(angle + Math.PI / 2) * wiggle;
     currentY += Math.sin(angle) * stepLength + Math.sin(angle + Math.PI / 2) * wiggle;
 
-    // Check boundary
+    // Stop if we go outside the growth radius
     const distFromCenter = Math.hypot(currentX - canvas.width / 2, currentY - canvas.height / 2);
     if (distFromCenter > growthRadius) return;
 
-    // Check density
+    // Stop if too dense
     if (getDensity(currentX, currentY) > maxDensity) return;
     increaseDensity(currentX, currentY);
 
@@ -271,9 +277,9 @@ function drawFilament(
       fadeFactor = Math.max(fadeFactor, 0);
     }
 
-    // Slight color variation in HSL near white
-    const hueShift = Math.floor(Math.random() * 30) - 15; // ±15
-    const baseHue = 50 + hueShift; // around 50 => mild yellowish
+    // Slight color variation near white/yellowish
+    const hueShift = Math.floor(Math.random() * 30) - 15; 
+    const baseHue = 50 + hueShift; 
     const baseLightness = 95;
     const alpha = baseAlpha * fadeFactor;
 
@@ -281,8 +287,8 @@ function drawFilament(
     ctx.shadowBlur = shadowBlurAmount;
     ctx.shadowColor = shadowColor;
 
-    // Taper line width from start to end of each filament
-    const lineWidth = Math.max(baseLineWidth * (1 - i / steps) + 0.2, 0.2);
+    // Taper line width from segment start to end
+    const lineWidth = Math.max(baseLineWidth * (1 - i / steps) + 0.3, 0.2);
     ctx.lineWidth = lineWidth;
 
     // Draw segment
@@ -291,11 +297,11 @@ function drawFilament(
     ctx.lineTo(currentX, currentY);
     ctx.stroke();
 
-    // Update for next segment
+    // Update for next loop
     startX = currentX;
     startY = currentY;
 
-    // Spawn secondary from main
+    // Possibly spawn a secondary from a main
     if (growthType === "main" && branchFactor > 0) {
       if (Math.random() < secondaryBranchChance) {
         const newLength = length * secondaryBranchDecay;
@@ -307,59 +313,30 @@ function drawFilament(
 }
 
 //--------------------------------------
-// 6) Filler Network
-//--------------------------------------
-
-/**
- * Draws a dense "filler network" of thin filaments throughout the circle,
- * to minimize black areas while keeping these lines faint so main branches
- * still stand out.
- */
-function drawFillerNetwork() {
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-
-  for (let i = 0; i < fillerFilamentCount; i++) {
-    // Random angle and random distance from center
-    const angle = Math.random() * 2 * Math.PI;
-    const radius = Math.random() * growthRadius * 0.95; // stay inside circle
-
-    const x = centerX + Math.cos(angle) * radius;
-    const y = centerY + Math.sin(angle) * radius;
-
-    // Short random length
-    const length = 50 + Math.random() * 100;
-
-    // Draw a "filler" type filament (no branching)
-    drawFilament(ctx, x, y, angle, length, 0, 1, "filler");
-  }
-}
-
-//--------------------------------------
-// 7) Master Drawing Function
+// 6) Master Drawing Function
 //--------------------------------------
 
 function drawOrganicMycelium() {
   densityMap.clear();
 
-  // Background is black
+  // Fill black background
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 1) Draw a large "filler" network to cover the circle area
-  drawFillerNetwork();
-
-  // 2) Now draw main branches from center, which can spawn secondaries
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
+
+  // Draw many main branches from center
   for (let i = 0; i < mainBranchCount; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const initialLength = 300 + Math.random() * 200; // 300..500
-    // branchFactor=8 => can spawn multiple secondaries
-    drawFilament(ctx, centerX, centerY, angle, initialLength, 8, 1, "main");
+    // Very long main branches => better coverage
+    const initialLength = 500 + Math.random() * 300; // 500..800
+
+    // High branchFactor => multiple secondary spawns
+    drawFilament(ctx, centerX, centerY, angle, initialLength, 6, 1, "main");
   }
 
-  // 3) Fade out edges with a radial gradient
+  // Final radial gradient fade
   const gradient = ctx.createRadialGradient(
     centerX,
     centerY,
@@ -375,7 +352,7 @@ function drawOrganicMycelium() {
 }
 
 //--------------------------------------
-// 8) Resize Handling & Initial Draw
+// 7) Handle Resize & Initialize
 //--------------------------------------
 
 window.addEventListener("resize", () => {
