@@ -1,18 +1,16 @@
 {
   "name": "ropey-growth-gpujs",
   "version": "1.0.0",
-  "description": "An advanced mycelium simulation with environment updates accelerated by GPU.js",
+  "description": "An advanced mycelium simulation using GPU.js, with Vite for dev/build.",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "lite-server",
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
   },
   "devDependencies": {
-    "concurrently": "^7.6.0",
-    "gpu.js": "^2.16.0",
-    "lite-server": "^2.6.1",
+    "vite": "^4.4.9",
     "typescript": "^5.2.2",
-    "vite": "^4.0.0"
+    "gpu.js": "^2.12.0"
   }
 }

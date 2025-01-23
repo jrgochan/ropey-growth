@@ -4,9 +4,10 @@
  * Minimal starburst from center:
  * - 1 array of "HyphaTip"
  * - each step => move, maybe branch, draw
+ * - **No** fade from the origin or boundary
  ***************************************************/
 
-import { Perlin } from "./perlin.js";
+import { Perlin } from "./Perlin.js";
 import {
   GROWTH_RADIUS_FACTOR,
   MAIN_BRANCH_COUNT,
@@ -19,8 +20,8 @@ import {
   WIGGLE_STRENGTH,
   PERLIN_SCALE,
   BACKGROUND_ALPHA,
-  FADE_START_FACTOR,
-  FADE_END_FACTOR,
+  // FADE_START_FACTOR,  <-- removed
+  // FADE_END_FACTOR,    <-- removed
   MAIN_LINE_WIDTH,
   MAIN_ALPHA,
   SECONDARY_LINE_WIDTH,
@@ -75,11 +76,11 @@ export class GrowthManager {
   }
 
   public updateAndDraw() {
-    // mild fade
+    // mild fade for old lines if you want a trailing effect
     this.ctx.fillStyle = `rgba(0, 0, 0, ${BACKGROUND_ALPHA})`;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // do sub-steps => time-lapse
+    // sub-steps => time-lapse
     for (let i = 0; i < TIME_LAPSE_FACTOR; i++) {
       this.simOneStep();
     }
@@ -118,7 +119,7 @@ export class GrowthManager {
       } else {
         tip.life--;
         // draw
-        this.drawSegment(oldX, oldY, tip.x, tip.y, tip.growthType, dist, tip.depth);
+        this.drawSegment(oldX, oldY, tip.x, tip.y, tip.growthType);
 
         // maybe branch
         if (
@@ -130,7 +131,7 @@ export class GrowthManager {
             x: tip.x,
             y: tip.y,
             angle: tip.angle + (Math.random() - 0.5) * Math.PI,
-            life: tip.life * 0.8,  // decays a bit
+            life: tip.life * 0.8, // decays a bit
             depth: tip.depth + 1,
             growthType: "secondary"
           });
@@ -148,13 +149,11 @@ export class GrowthManager {
     oldY: number,
     newX: number,
     newY: number,
-    type: GrowthType,
-    distFromCenter: number,
-    depth: number
+    type: GrowthType
   ) {
-    let lineWidth = 1;
-    let alpha = 0.5;
-
+    // line style
+    let lineWidth: number;
+    let alpha: number;
     if (type === "main") {
       lineWidth = MAIN_LINE_WIDTH;
       alpha = MAIN_ALPHA;
@@ -163,17 +162,7 @@ export class GrowthManager {
       alpha = SECONDARY_ALPHA;
     }
 
-    // fade near boundary
-    const fs = this.growthRadius * FADE_START_FACTOR;
-    const fe = this.growthRadius * FADE_END_FACTOR;
-    let fadeFactor = 1;
-    if (distFromCenter > fs) {
-      fadeFactor = 1 - (distFromCenter - fs) / (fe - fs);
-      fadeFactor = Math.max(fadeFactor, 0);
-    }
-    alpha *= fadeFactor;
-
-    // color shift
+    // color shift (if you like subtle variety)
     const hueShift = Math.floor(Math.random() * 20) - 10;
     const hue = BASE_HUE + hueShift;
 
