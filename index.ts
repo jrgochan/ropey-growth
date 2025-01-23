@@ -1,9 +1,10 @@
 /***************************************************
  * TypeScript Implementation:
- * Only lines growing from the center (main) or
- * branching off existing lines (secondary).
+ * Only lines from the center (main) or branching 
+ * off existing lines (secondary).
  * 
- * No filler filaments from random positions!
+ * Includes a tunable parameter to leave some % 
+ * of the circle empty at the outer edge.
  ***************************************************/
 
 //--------------------------------------
@@ -101,37 +102,46 @@ canvas.height = window.innerHeight;
 // 3) Main Growth Parameters
 //--------------------------------------
 
-/** Large radius, close to full window size */
+/**
+ * The overall radius in which we might draw.
+ * We will reserve some fraction of this as empty space (see emptyEdgeFraction).
+ */
 const growthRadius = Math.min(canvas.width, canvas.height) * 0.45;
 
-/** 
- * High density limit so filaments rarely stop 
- * due to local overcrowding. 
+/**
+ * We allow lines to grow only up to `maxDrawRadius`, which is
+ * growthRadius * (1 - emptyEdgeFraction).
+ * 
+ * Example: if emptyEdgeFraction=0.2, then 20% of the circle's radius
+ * is left empty. Filaments fill up to only 80% of the circle radius.
+ */
+const emptyEdgeFraction = 0.0; // Tweak to your liking: e.g. 0.0 -> fill everything
+const maxDrawRadius = growthRadius * (1 - emptyEdgeFraction);
+
+/**
+ * High density limit so lines don't stop due to overcrowding
  */
 const maxDensity = 9999;  
-const cellSize = 15; // Grid size for density map
+const cellSize = 15;
 
-/** 
- * Many main branches from the center 
- * => more coverage of the circle
+/**
+ * Many main branches from the center => broad coverage
  */
 const mainBranchCount = 40;  
 
-/** 
- * Probability that each step of a main branch 
- * spawns a secondary branch. 
- * => High => fill interior 
+/**
+ * Probability that each step of a main branch spawns a secondary
+ * => very high => fill interior thoroughly
  */
 const secondaryBranchChance = 0.95;
 
-/** 
- * Variation of angle for secondaries 
- * => a wide range so they can splay out 
+/**
+ * Variation of angle for secondaries => a wide range
  */
 const secondaryBranchAngleVariance = Math.PI / 2;
 
 /** 
- * Secondary length is a fraction of the main 
+ * How secondary length compares to main branch length
  */
 const secondaryBranchDecay = 0.8;
 
@@ -140,8 +150,15 @@ const secondaryBranchDecay = 0.8;
  */
 const secondaryBranchSteps = 30;
 
-/** 
- * Fade near edge 
+/**
+ * We'll do 60 segments in main branches (set below).
+ */
+
+/**
+ * Fade near the "usable" edge
+ * 
+ * We'll define fadeStartRadiusFactor / fadeEndRadiusFactor
+ * relative to maxDrawRadius (not the total growthRadius).
  */
 const fadeStartRadiusFactor = 0.9;
 const fadeEndRadiusFactor = 1.0;
@@ -166,7 +183,7 @@ const ANGLE_DRIFT_STRENGTH = 0.15;
 const WIGGLE_STRENGTH = 3;
 
 /** 
- * Create global perlin instance 
+ * Global perlin instance 
  */
 const perlin = new Perlin();
 
@@ -222,7 +239,7 @@ function drawFilament(
 ): void {
   if (length < 1 || depth <= 0) return;
 
-  // Higher step counts => more lines filling space
+  // We'll do more steps for main branches for denser coverage
   const steps = growthType === "main" ? 60 : secondaryBranchSteps;
 
   // Base line width & alpha
@@ -233,6 +250,7 @@ function drawFilament(
     baseLineWidth = Math.max(3.0 - depth * 0.1, 1.0);
     baseAlpha = 0.85;
   } else {
+    // secondary
     baseLineWidth = Math.max(2.0 - depth * 0.1, 0.5);
     baseAlpha = 0.7;
   }
@@ -259,21 +277,21 @@ function drawFilament(
     currentX += Math.cos(angle) * stepLength + Math.cos(angle + Math.PI / 2) * wiggle;
     currentY += Math.sin(angle) * stepLength + Math.sin(angle + Math.PI / 2) * wiggle;
 
-    // Stop if we go outside the growth radius
+    // Stop if we go outside the usable draw radius (accounting for emptyEdgeFraction)
     const distFromCenter = Math.hypot(currentX - canvas.width / 2, currentY - canvas.height / 2);
-    if (distFromCenter > growthRadius) return;
+    if (distFromCenter > maxDrawRadius) return;
 
     // Stop if too dense
     if (getDensity(currentX, currentY) > maxDensity) return;
     increaseDensity(currentX, currentY);
 
-    // Fade near edge
+    // Fade factor near the maxDrawRadius (not the full growthRadius)
     let fadeFactor = 1;
-    if (distFromCenter > growthRadius * fadeStartRadiusFactor) {
-      fadeFactor =
-        1 -
-        (distFromCenter - growthRadius * fadeStartRadiusFactor) /
-        (growthRadius * (fadeEndRadiusFactor - fadeStartRadiusFactor));
+    const fadeStart = maxDrawRadius * fadeStartRadiusFactor;
+    const fadeEnd = maxDrawRadius * fadeEndRadiusFactor;
+
+    if (distFromCenter > fadeStart) {
+      fadeFactor = 1 - (distFromCenter - fadeStart) / (fadeEnd - fadeStart);
       fadeFactor = Math.max(fadeFactor, 0);
     }
 
@@ -301,7 +319,7 @@ function drawFilament(
     startX = currentX;
     startY = currentY;
 
-    // Possibly spawn a secondary from a main
+    // Possibly spawn a secondary from main
     if (growthType === "main" && branchFactor > 0) {
       if (Math.random() < secondaryBranchChance) {
         const newLength = length * secondaryBranchDecay;
@@ -319,7 +337,7 @@ function drawFilament(
 function drawOrganicMycelium() {
   densityMap.clear();
 
-  // Fill black background
+  // Fill entire background black
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -329,14 +347,15 @@ function drawOrganicMycelium() {
   // Draw many main branches from center
   for (let i = 0; i < mainBranchCount; i++) {
     const angle = Math.random() * Math.PI * 2;
-    // Very long main branches => better coverage
+    // Very long main branches => better coverage within maxDrawRadius
     const initialLength = 500 + Math.random() * 300; // 500..800
 
-    // High branchFactor => multiple secondary spawns
+    // branchFactor=6 => can spawn multiple secondaries
     drawFilament(ctx, centerX, centerY, angle, initialLength, 6, 1, "main");
   }
 
-  // Final radial gradient fade
+  // We add a radial gradient that extends out to the *full* growthRadius
+  // so you still see a black ring from growthRadius*(1-emptyEdgeFraction) to growthRadius.
   const gradient = ctx.createRadialGradient(
     centerX,
     centerY,
