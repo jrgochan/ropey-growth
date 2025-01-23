@@ -1,14 +1,14 @@
 /***************************************************
  * main.ts
  *
- * The entry point: sets up the environment grid, 
- * mycelial network, growth manager, & animation.
+ * Entry point. Creates environment, growth manager,
+ * and runs the animation.
  ***************************************************/
 
 import { EnvironmentGrid } from "./environment.js";
-import { MycelialNetwork } from "./mycelialNetwork.js";
 import { GrowthManager } from "./growth.js";
-import { Perlin } from "./Perlin.js";
+import { Perlin } from "./perlin.js";
+
 import {
   GROWTH_RADIUS_FACTOR,
   MAIN_BRANCH_COUNT
@@ -30,42 +30,25 @@ window.addEventListener("resize", () => {
   height = window.innerHeight;
   canvas.width = width;
   canvas.height = height;
-  setup();  // re-init on resize
+  setup(); // re-init on resize
 });
 
 let env: EnvironmentGrid;
-let net: MycelialNetwork;
 let growth: GrowthManager;
 let perlin: Perlin;
 
 function setup() {
-  // Create environment
+  // environment
   env = new EnvironmentGrid(width, height);
 
-  // Create MycelialNetwork
-  net = new MycelialNetwork();
-
-  // Create Perlin
+  // perlin
   perlin = new Perlin();
 
   const centerX = width / 2;
   const centerY = height / 2;
   const r = Math.min(width, height) * GROWTH_RADIUS_FACTOR;
 
-  // Create GrowthManager
-  growth = new GrowthManager(
-    ctx,
-    width,
-    height,
-    centerX,
-    centerY,
-    r,
-    env,
-    net,
-    perlin
-  );
-
-  // Initialize with main branches at center
+  growth = new GrowthManager(ctx, width, height, centerX, centerY, r, env, perlin);
   growth.init(MAIN_BRANCH_COUNT);
 }
 

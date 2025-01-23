@@ -1,7 +1,7 @@
 {
   "name": "ropey-growth",
-  "version": "3.0.0",
-  "description": "A more realistic iterative mycelium simulation with resource flow, anastomosis, and environment gradients.",
+  "version": "4.0.0",
+  "description": "A stable, iterative mycelium simulation in a petri dish without crashing.",
   "type": "module",
   "scripts": {
     "build": "tsc",

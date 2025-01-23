@@ -2,12 +2,12 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ES2020",
-    "rootDir": "src",         // Our source files live in /src
-    "outDir": "dist",         // Compiled .js goes in /dist
-    "strict": true,           // Enable strict type-checking
-    "esModuleInterop": true,  // Required for easy import/export of common libs
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true      // Skip checking .d.ts from node_modules
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"]     // Which files to compile
+  "include": ["src/**/*"]
 }
