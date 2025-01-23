@@ -141,7 +141,7 @@ const initGUI = () => {
   growthFolder.add(config, 'BASE_LIFE', 1000, 5000).step(100).name('Base Life').onChange(resetSimulation);
   growthFolder.add(config, 'BRANCH_DECAY', 0.5, 1.0).step(0.05).name('Branch Decay').onChange(resetSimulation);
   growthFolder.add(config, 'BRANCH_CHANCE', 0.0, 0.99).step(0.01).name('Branch Chance').onChange(resetSimulation);
-  growthFolder.add(config, 'MAX_BRANCH_DEPTH', 10, 100).step(5).name('Max Branch Depth').onChange(resetSimulation);
+  growthFolder.add(config, 'MAX_BRANCH_DEPTH', 0, 1000).step(1).name('Max Branch Depth').onChange(resetSimulation);
   growthFolder.add(config, 'ANGLE_DRIFT_STRENGTH', 0.0, 0.2).step(0.01).name('Angle Drift').onChange(resetSimulation);
   growthFolder.add(config, 'WIGGLE_STRENGTH', 0.0, 1.0).step(0.05).name('Wiggle Strength').onChange(resetSimulation);
   growthFolder.add(config, 'PERLIN_SCALE', 0.01, 0.2).step(0.01).name('Perlin Scale').onChange(resetSimulation);
@@ -171,7 +171,7 @@ const initGUI = () => {
   // Growth Simulation Parameters
   const simFolder = gui.addFolder('Simulation Parameters');
   simFolder.add(config, 'TIME_LAPSE_FACTOR', 1, 10).step(1).name('Time Lapse Factor').onChange(resetSimulation);
-  simFolder.add(config, 'SECONDARY_FAN_COUNT', 1, 5).step(1).name('Secondary Fan Count').onChange(resetSimulation);
+  simFolder.add(config, 'SECONDARY_FAN_COUNT', 0.00, 3).step(0.01).name('Secondary Fan Count').onChange(resetSimulation);
   simFolder.add(config, 'WIDER_SECONDARY_ANGLE', 0, Math.PI / 2).step(0.1).name('Secondary Angle').onChange(resetSimulation);
   simFolder.open();
 
