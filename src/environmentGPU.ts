@@ -1,8 +1,10 @@
 /***************************************************
  * environmentGPU.ts
  *
- * Manages a 2D nutrient array with GPU.js for diffusion,
- * ensuring correct TypeScript types and no "this.dimensions" usage.
+ * Manages the 2D nutrient environment using GPU.js:
+ * - Handles nutrient diffusion
+ * - Renders the nutrient state onto a canvas
+ * - Allows resource consumption by hyphal tips
  ***************************************************/
 
 import { GPU, IKernelFunctionThis } from "gpu.js";
@@ -10,147 +12,215 @@ import {
   ENV_GRID_CELL_SIZE,
   BASE_NUTRIENT,
   NUTRIENT_DIFFUSION,
-  NUTRIENT_CONSUMPTION_RATE
 } from "./constants.js";
 
 /**
- * For clarity, define an interface for the GPU kernel's 'this':
- * GPU.js provides `IKernelFunctionThis`, but we also want
- * to ensure `thread` and `output` are typed with x/y.
+ * Interface to extend GPU.js's kernel "this" for TypeScript.
  */
-interface KernelThis extends IKernelFunctionThis {
+interface KernelThis2D extends IKernelFunctionThis {
   thread: { x: number; y: number; z: number };
   output: { x: number; y: number; z: number };
 }
 
 /**
  * EnvironmentGPU:
- * - Stores a Float32Array of nutrient data
- * - Each update: pass data to GPU kernel -> do diffusion -> read back
+ * - Maintains a 2D array of nutrients in CPU memory.
+ * - Uses GPU.js to handle diffusion and rendering.
  */
 export class EnvironmentGPU {
-  public width: number;
-  public height: number;
   public cols: number;
   public rows: number;
-
-  private nutrientData: Float32Array;
   private gpu: GPU;
-  private diffusionKernel: (
-    input: number[][],
-    diffRate: number
-  ) => number[][];
 
-  constructor(width: number, height: number) {
-    this.width = width;
-    this.height = height;
-    this.cols = Math.ceil(width / ENV_GRID_CELL_SIZE);
-    this.rows = Math.ceil(height / ENV_GRID_CELL_SIZE);
+  // Nutrient data stored in a 1D Float32Array for CPU access
+  private nutrientCPU: Float32Array;
 
-    // Initialize array with base nutrient
-    this.nutrientData = new Float32Array(this.rows * this.cols);
-    for (let i = 0; i < this.nutrientData.length; i++) {
-      this.nutrientData[i] = BASE_NUTRIENT;
-    }
+  // GPU Kernels
+  private diffusionKernel: (data: number[][]) => number[][];
+  private renderKernel: (data: number[][]) => void;
 
-    // Setup GPU.js
-    this.gpu = new GPU();
+  // The HTMLCanvasElement used for rendering nutrients
+  private canvas: HTMLCanvasElement;
+  private gl: WebGL2RenderingContext | WebGLRenderingContext;
 
     /**
-     * Build a naive diffusion kernel. We replace any usage of
-     * `this.dimensions.y` with `this.output.y`. Then define explicit
-     * parameter types: (this: KernelThis, input: number[][], diffRate: number).
-     */
+   * Constructor initializes the EnvironmentGPU.
+   * @param width - Width of the main canvas.
+   * @param height - Height of the main canvas.
+   * @param canvas - The canvas element dedicated to environment rendering.
+   */
+    constructor(width: number, height: number, canvas: HTMLCanvasElement) {
+      // Calculate grid dimensions based on cell size
+      this.cols = Math.ceil(width / ENV_GRID_CELL_SIZE);
+      this.rows = Math.ceil(height / ENV_GRID_CELL_SIZE);
+  
+      // Initialize CPU nutrient array with BASE_NUTRIENT
+      this.nutrientCPU = new Float32Array(this.rows * this.cols);
+      this.nutrientCPU.fill(BASE_NUTRIENT);
+  
+      // Initialize GPU.js
+      this.gpu = new GPU();
+  
+      // Use the provided canvas
+      this.canvas = canvas;
+      this.canvas.width = this.cols;
+      this.canvas.height = this.rows;
+  
+      // Obtain WebGL2 or WebGL1 context
+      this.gl =
+        this.canvas.getContext("webgl2") ||
+        this.canvas.getContext("webgl");
+      if (!this.gl) {
+        console.error("Failed to obtain WebGL context.");
+        throw new Error("WebGL not supported on this device/browser");
+      }
+  
+      // Initialize GPU Kernels
+      this.initializeKernels();
+  
+      // Initial render
+      this.renderToCanvas();
+    }
+
+  /**
+   * Initializes the diffusion and render kernels.
+   */
+  private initializeKernels() {
+    // Diffusion Kernel: Updates nutrient levels based on neighboring cells
     this.diffusionKernel = this.gpu
-      .createKernel(
-        function (
-          this: KernelThis,
-          input: number[][],
-          diffRate: number
-        ): number {
-          const y = this.thread.y;
-          const x = this.thread.x;
+      .createKernel(function (data: number[][]) {
+        const y = this.thread.y;
+        const x = this.thread.x;
+        const centerVal = data[y][x];
 
-          // read center
-          const centerVal = input[y][x];
+        let accum = centerVal;
+        let count = 1;
 
-          let accum = centerVal;
-          let count = 1;
+        // Check and accumulate neighboring cells
+        if (y > 0) {
+          accum += data[y - 1][x];
+          count++;
+        }
+        if (y < this.output.y - 1) {
+          accum += data[y + 1][x];
+          count++;
+        }
+        if (x > 0) {
+          accum += data[y][x - 1];
+          count++;
+        }
+        if (x < this.output.x - 1) {
+          accum += data[y][x + 1];
+          count++;
+        }
 
-          // up
-          if (y > 0) {
-            accum += input[y - 1][x];
-            count++;
-          }
-          // down
-          if (y < this.output.y - 1) {
-            accum += input[y + 1][x];
-            count++;
-          }
-          // left
-          if (x > 0) {
-            accum += input[y][x - 1];
-            count++;
-          }
-          // right
-          if (x < this.output.x - 1) {
-            accum += input[y][x + 1];
-            count++;
-          }
+        const avg = accum / count;
+        // Update nutrient level with diffusion factor
+        return centerVal + (avg - centerVal) * this.constants.NUTRIENT_DIFFUSION;
+      })
+      .setOutput([this.cols, this.rows])
+      .setConstants({ NUTRIENT_DIFFUSION });
 
-          const avg = accum / count;
-          return centerVal + (avg - centerVal) * diffRate;
-        },
-        { output: [this.cols, this.rows] }
-      ) as (
-        input: number[][],
-        diffRate: number
-      ) => number[][]; // cast the function type
+    // Render Kernel: Renders the nutrient levels as grayscale colors
+    this.renderKernel = this.gpu
+    .createKernel(function (data: number[][]) {
+      const y = this.thread.y;
+      const x = this.thread.x;
+  
+      const val = data[y][x];
+      // Scale and clamp the nutrient value for better visibility
+      const c = Math.min(Math.max(val / 5.0, 0), 1.0); // Adjusted scaling
+      this.color(c, c, c, 1.0); // RGBA
+    })
+    .setOutput([this.cols, this.rows])
+    .setGraphical(true)
+    .setCanvas(this.canvas)
+    .setContext(this.gl);
   }
 
   /**
-   * updateEnvironment():
-   *  - convert 1D nutrientData to 2D array
-   *  - run diffusionKernel
-   *  - read back into nutrientData
+   * Updates the nutrient environment by performing diffusion.
    */
-  public updateEnvironment(): void {
-    const input2D: number[][] = [];
+  public updateEnvironment() {
+    // Convert the 1D nutrient array to a 2D array for the kernel
+    const data2D: number[][] = [];
     for (let r = 0; r < this.rows; r++) {
       const row: number[] = [];
       for (let c = 0; c < this.cols; c++) {
-        row.push(this.nutrientData[r * this.cols + c]);
+        row.push(this.nutrientCPU[r * this.cols + c]);
       }
-      input2D.push(row);
+      data2D.push(row);
     }
 
-    // GPU diffusion
-    const output: number[][] = this.diffusionKernel(
-      input2D,
-      NUTRIENT_DIFFUSION
-    );
+    // Perform diffusion using the GPU kernel
+    const output = this.diffusionKernel(data2D);
 
-    // copy back
+    // Update the CPU nutrient array with the diffused values
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
-        this.nutrientData[r * this.cols + c] = output[r][c];
+        this.nutrientCPU[r * this.cols + c] = output[r][c];
       }
     }
   }
 
   /**
-   * consumeResource():
-   *  - subtract from local cell
+   * Renders the current nutrient state onto the environment canvas.
    */
-  public consumeResource(x: number, y: number, amount: number): number {
+  public renderToCanvas() {
+    // Convert the 1D nutrient array to a 2D array for the render kernel
+    const data2D: number[][] = [];
+    for (let r = 0; r < this.rows; r++) {
+      const row: number[] = [];
+      for (let c = 0; c < this.cols; c++) {
+        row.push(this.nutrientCPU[r * this.cols + c]);
+      }
+      data2D.push(row);
+    }
+
+    // Perform rendering using the GPU kernel
+    this.renderKernel(data2D);
+  }
+
+  /**
+   * Draws the environment canvas onto the main canvas context.
+   * @param mainCtx - The 2D rendering context of the main canvas.
+   * @param w - Width of the main canvas.
+   * @param h - Height of the main canvas.
+   */
+  public drawEnvOnMainContext(mainCtx: CanvasRenderingContext2D, w: number, h: number) {
+    // Draw the environment canvas onto the main canvas, scaling it appropriately
+    mainCtx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, w, h);
+  }
+
+  /**
+   * Consumes nutrient from a specific (x, y) location.
+   * @param x - X-coordinate in pixels.
+   * @param y - Y-coordinate in pixels.
+   * @param amt - Amount of nutrient to consume.
+   * @returns The actual amount consumed.
+   */
+  public consumeResource(x: number, y: number, amt: number): number {
+    // Map pixel coordinates to grid cells
     const c = Math.floor(x / ENV_GRID_CELL_SIZE);
     const r = Math.floor(y / ENV_GRID_CELL_SIZE);
+
+    // Boundary check
     if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return 0;
 
     const idx = r * this.cols + c;
-    const available = this.nutrientData[idx];
-    const consumed = Math.min(available, amount);
-    this.nutrientData[idx] = available - consumed;
+    const available = this.nutrientCPU[idx];
+    const consumed = Math.min(available, amt);
+    this.nutrientCPU[idx] = available - consumed;
+
     return consumed;
+  }
+
+  /**
+   * Getter for the environment canvas (optional).
+   * Useful for debugging or layered canvas setups.
+   * @returns The environment HTMLCanvasElement.
+   */
+  public getCanvas(): HTMLCanvasElement {
+    return this.canvas;
   }
 }

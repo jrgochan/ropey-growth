@@ -1,11 +1,9 @@
 /***************************************************
  * main.ts
  *
- * Ties everything together:
- *  - Creates environment GPU
- *  - Creates MycelialNetwork
- *  - Creates GrowthManager
- *  - Runs an animation loop
+ * Integrates EnvironmentGPU, MycelialNetwork, and GrowthManager.
+ * - Initializes all components
+ * - Manages the animation loop
  ***************************************************/
 
 import { EnvironmentGPU } from "./environmentGPU.js";
@@ -14,63 +12,96 @@ import { GrowthManager } from "./growth.js";
 import { Perlin } from "./Perlin.js";
 import { MAIN_BRANCH_COUNT } from "./constants.js";
 
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d")!;
+// Create the main canvas and append it to the document body
+const mainCanvas = document.createElement("canvas");
+const mainCtx = mainCanvas.getContext("2d")!;
 document.body.style.margin = "0";
 document.body.style.overflow = "hidden";
-document.body.appendChild(canvas);
+document.body.appendChild(mainCanvas);
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener("resize", () => {
-  resizeCanvas();
-  setup(); // re-init
-});
+// Create Environment Canvas
+const envCanvas = document.createElement("canvas");
+envCanvas.width = window.innerWidth;
+envCanvas.height = window.innerHeight;
+envCanvas.style.position = "absolute";
+envCanvas.style.top = "0";
+envCanvas.style.left = "0";
+envCanvas.style.zIndex = "0"; // Behind the main canvas
+envCanvas.style.pointerEvents = "none"; // Allow interactions on main canvas
+document.body.appendChild(envCanvas);
 
-// Global references
+// Initialize EnvironmentGPU with its own canvas
 let envGPU: EnvironmentGPU;
 let net: MycelialNetwork;
 let growth: GrowthManager;
 let perlin: Perlin;
 
+function resizeCanvases() {
+  mainCanvas.width = window.innerWidth;
+  mainCanvas.height = window.innerHeight;
+  envCanvas.width = window.innerWidth;
+  envCanvas.height = window.innerHeight;
+}
+resizeCanvases();
+window.addEventListener("resize", () => {
+  resizeCanvases();
+  setup(); // Re-initialize components on resize
+});
+
+/**
+ * Initializes all simulation components.
+ */
 function setup() {
-  const w = canvas.width;
-  const h = canvas.height;
+  const w = mainCanvas.width;
+  const h = mainCanvas.height;
 
-  // GPU environment
-  envGPU = new EnvironmentGPU(w, h);
+  // Initialize GPU Environment
+  envGPU = new EnvironmentGPU(w, h, envCanvas);
 
-  // Mycelial network
+  // Initialize Mycelial Network
   net = new MycelialNetwork();
 
-  // Perlin
+  // Initialize Perlin Noise Generator
   perlin = new Perlin();
 
+  // Calculate center coordinates
   const cx = w / 2;
   const cy = h / 2;
-  const r = Math.min(w, h);
 
-  // Growth manager
+  // Initialize Growth Manager with reference to EnvironmentGPU
   growth = new GrowthManager(
-    ctx,
-    canvas.width,
-    canvas.height,
+    mainCtx,
+    w,
+    h,
     cx,
     cy,
-    perlin
+    perlin,
+    envGPU // Pass EnvironmentGPU instance
   );
 
-  // If GrowthManager's init() expects no arguments, call it with none:
+  // Initialize the growth simulation
   growth.init();
 }
 
+/**
+ * The main animation loop.
+ */
 function animate() {
+  // 1. Update the nutrient environment (diffusion)
+  envGPU.updateEnvironment();
+
+  // 2. Render the nutrient environment onto its canvas
+  envGPU.renderToCanvas();
+
+  // 3. (Optional) Environment canvas is already rendered separately
+
+  // 4. Update and draw the mycelial growth lines on the main canvas
   growth.updateAndDraw();
+
+  // Continue the animation loop
   requestAnimationFrame(animate);
 }
 
+// Initial setup and start animation
 setup();
 animate();
