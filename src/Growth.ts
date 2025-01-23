@@ -41,6 +41,7 @@ import {
 } from "./constants.js";
 
 import { EnvironmentGPU } from "./environmentGPU.js";
+import { MycelialNetwork } from "./mycelialNetwork.js"; // Ensure this is correctly imported and used
 
 export type GrowthType = "main" | "secondary";
 
@@ -70,6 +71,7 @@ export class GrowthManager {
    * @param centerY - Y-coordinate of the center.
    * @param perlin - Instance of Perlin noise generator.
    * @param envGPU - Instance of EnvironmentGPU for resource management.
+   * @param network - Instance of MycelialNetwork for resource flow management.
    */
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -78,7 +80,8 @@ export class GrowthManager {
     private centerX: number,
     private centerY: number,
     private perlin: Perlin,
-    private envGPU: EnvironmentGPU
+    private envGPU: EnvironmentGPU,
+    private network: MycelialNetwork // Injecting the network for resource flow
   ) {
     this.growthRadius = Math.min(width, height) * GROWTH_RADIUS_FACTOR;
   }
@@ -104,6 +107,12 @@ export class GrowthManager {
         resource: INITIAL_RESOURCE_PER_TIP
       });
     }
+
+    // Optionally, create network nodes for each main branch
+    this.tips.forEach(tip => {
+      const nodeId = this.network.createNode(tip.x, tip.y, tip.resource);
+      // Further connections can be established based on simulation needs
+    });
   }
 
   /**
@@ -119,6 +128,9 @@ export class GrowthManager {
     for (let i = 0; i < totalSteps; i++) {
       this.simOneStep();
     }
+
+    // Optionally, handle resource flow within the network
+    this.network.flowResources();
   }
 
   /**
@@ -259,18 +271,5 @@ export class GrowthManager {
     // Reset shadow to prevent it from affecting other drawings
     this.ctx.shadowBlur = 0;
     this.ctx.shadowColor = "transparent";
-
-    // **Optional Debugging:** Draw a small circle at the new tip position
-    /*
-    this.ctx.fillStyle = 'red';
-    this.ctx.beginPath();
-    this.ctx.arc(newX, newY, 2, 0, Math.PI * 2);
-    this.ctx.fill();
-    */
-
-    // **Optional Debugging:** Log segment drawing
-    /*
-    console.log(`Drawing ${type} segment from (${oldX}, ${oldY}) to (${newX}, ${newY})`);
-    */
   }
 }

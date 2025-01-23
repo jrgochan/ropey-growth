@@ -38,7 +38,7 @@ pipCanvas.style.top = "10px"; // Positioning for PiP
 pipCanvas.style.right = "10px";
 pipCanvas.style.width = "200px"; // Fixed size for PiP
 pipCanvas.style.height = "200px";
-pipCanvas.style.zIndex = "2"; // Above mainCanvas
+pipCanvas.style.zIndex = "3"; // Above mainCanvas
 pipCanvas.style.border = "2px solid white"; // Optional styling
 pipCanvas.style.boxSizing = "border-box"; // Ensure border is included in size
 pipCanvas.style.display = "none"; // Initially hidden
@@ -64,7 +64,7 @@ const toggleContainer = document.createElement("div");
 toggleContainer.style.position = "absolute";
 toggleContainer.style.top = "10px";
 toggleContainer.style.left = "10px";
-toggleContainer.style.zIndex = "3"; // Above all canvases
+toggleContainer.style.zIndex = "4"; // Above pipCanvas
 toggleContainer.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
 toggleContainer.style.padding = "10px";
 toggleContainer.style.borderRadius = "5px";
@@ -85,9 +85,9 @@ toggleLabel.prepend(toggleCheckbox);
 toggleContainer.appendChild(toggleLabel);
 document.body.appendChild(toggleContainer);
 
-// Initialize EnvironmentGPU, GrowthManager, and other components
+// Initialize EnvironmentGPU, MycelialNetwork, and GrowthManager
 let envGPU: EnvironmentGPU;
-let net: MycelialNetwork;
+let network: MycelialNetwork;
 let growth: GrowthManager;
 let perlin: Perlin;
 
@@ -107,10 +107,10 @@ function setup() {
   // Initialize GPU Environment
   envGPU = new EnvironmentGPU(w, h, envCanvas);
 
-  // Initialize Mycelial Network (Assuming it interacts with EnvironmentGPU)
-  net = new MycelialNetwork(); // Implement as needed
+  // Initialize Mycelial Network
+  network = new MycelialNetwork();
 
-  // Initialize Growth Manager with reference to EnvironmentGPU
+  // Initialize Growth Manager with reference to EnvironmentGPU and MycelialNetwork
   const cx = w / 2;
   const cy = h / 2;
   growth = new GrowthManager(
@@ -120,7 +120,8 @@ function setup() {
     cx,
     cy,
     perlin,
-    envGPU // Pass EnvironmentGPU instance
+    envGPU,   // Pass EnvironmentGPU instance
+    network   // Pass MycelialNetwork instance
   );
 
   // Initialize the growth simulation
@@ -179,7 +180,7 @@ function animate() {
   // 4. Update and draw the mycelial growth lines on the main canvas
   growth.updateAndDraw();
 
-  // Continue the animation loop
+  // 5. Continue the animation loop
   requestAnimationFrame(animate);
 }
 

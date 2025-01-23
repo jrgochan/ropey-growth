@@ -7,14 +7,14 @@
 
 // Canvas & Growth
 export const GROWTH_RADIUS_FACTOR = 0.90;     // Fraction of min(width, height) for dish
-export const MAIN_BRANCH_COUNT = 5;           // Reduced for testing
+export const MAIN_BRANCH_COUNT = 20;          // Reduced from 100 to 20 for testing
 
 // Growth parameters
 export const STEP_SIZE = 0.2;                 // Step size for each iteration before multiplying by the growth factor
-export const GROWTH_SPEED_MULTIPLIER = 0.5;   // 1 => real-time; >1 => faster growth
+export const GROWTH_SPEED_MULTIPLIER = 1.0;   // Reduced from 1.5 to 1.0 for controlled growth
 export const BASE_LIFE = 3000;                // Base life for main tips
-export const BRANCH_DECAY = 0.7;              // Fraction of parent's life for branches
-export const BRANCH_CHANCE = 0.02;            // Chance each tip spawns a new branch each step
+export const BRANCH_DECAY = 0.9;              // Fraction of parent's life for branches
+export const BRANCH_CHANCE = 0.02;            // Corrected from 9 to 0.02
 export const MAX_BRANCH_DEPTH = 10;           // Maximum depth for nested branches
 export const ANASTOMOSIS_RADIUS = 10;         // Radius within which tips fuse
 

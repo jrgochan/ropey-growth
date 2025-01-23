@@ -1,226 +1,225 @@
 /***************************************************
  * environmentGPU.ts
  *
- * Manages the 2D nutrient environment using GPU.js:
- * - Handles nutrient diffusion
- * - Renders the nutrient state onto a canvas
- * - Allows resource consumption by hyphal tips
+ * Manages the nutrient environment for the mycelial simulation.
+ * - Initializes and updates the nutrient grid.
+ * - Simulates nutrient diffusion.
+ * - Handles resource consumption by hyphal tips.
+ * - Renders the nutrient environment onto a canvas.
  ***************************************************/
 
-import { GPU, IKernelFunctionThis } from "gpu.js";
+import { GPU } from 'gpu.js';
 import {
   ENV_GRID_CELL_SIZE,
   BASE_NUTRIENT,
   NUTRIENT_DIFFUSION,
-} from "./constants.js";
+  BACKGROUND_ALPHA,
+  FADE_START_FACTOR,
+  FADE_END_FACTOR
+} from './constants.js';
 
-/**
- * Interface to extend GPU.js's kernel "this" for TypeScript.
- */
-interface KernelThis2D extends IKernelFunctionThis {
-  thread: { x: number; y: number; z: number };
-  output: { x: number; y: number; z: number };
-}
-
-/**
- * EnvironmentGPU:
- * - Maintains a 2D array of nutrients in CPU memory.
- * - Uses GPU.js to handle diffusion and rendering.
- */
 export class EnvironmentGPU {
-  public cols: number;
-  public rows: number;
   private gpu: GPU;
-
-  // Nutrient data stored in a 1D Float32Array for CPU access
-  private nutrientCPU: Float32Array;
-
-  // GPU Kernels
-  private diffusionKernel: (data: number[][]) => number[][];
-  private renderKernel: (data: number[][]) => void;
-
-  // The HTMLCanvasElement used for rendering nutrients
+  private renderKernel: any;
+  private diffusionKernel: any;
+  private nutrientGrid: number[][];
+  private cols: number;
+  private rows: number;
   private canvas: HTMLCanvasElement;
-  private gl: WebGL2RenderingContext | WebGLRenderingContext;
+  private ctx: CanvasRenderingContext2D;
 
-  /**
-   * Constructor initializes the EnvironmentGPU.
-   * @param width - Width of the main canvas.
-   * @param height - Height of the main canvas.
-   * @param canvas - The canvas element dedicated to environment rendering.
-   */
   constructor(width: number, height: number, canvas: HTMLCanvasElement) {
-    // Calculate grid dimensions based on cell size
-    this.cols = Math.ceil(width / ENV_GRID_CELL_SIZE);
-    this.rows = Math.ceil(height / ENV_GRID_CELL_SIZE);
-
-    // Initialize CPU nutrient array with BASE_NUTRIENT
-    this.nutrientCPU = new Float32Array(this.rows * this.cols);
-    this.nutrientCPU.fill(BASE_NUTRIENT);
-
-    // Initialize GPU.js
     this.gpu = new GPU();
 
-    // Use the provided canvas (off-screen)
+    // Calculate grid dimensions based on cell size
+    this.cols = Math.floor(width / ENV_GRID_CELL_SIZE);
+    this.rows = Math.floor(height / ENV_GRID_CELL_SIZE);
+
+    // Initialize nutrient grid with base nutrient levels
+    this.nutrientGrid = [];
+    for (let y = 0; y < this.rows; y++) {
+      const row: number[] = [];
+      for (let x = 0; x < this.cols; x++) {
+        row.push(BASE_NUTRIENT);
+      }
+      this.nutrientGrid.push(row);
+    }
+
     this.canvas = canvas;
     this.canvas.width = this.cols;
     this.canvas.height = this.rows;
+    this.ctx = this.canvas.getContext('2d')!;
 
-    // Obtain WebGL2 or WebGL1 context
-    this.gl =
-      this.canvas.getContext("webgl2") ||
-      this.canvas.getContext("webgl");
-    if (!this.gl) {
-      console.error("Failed to obtain WebGL context.");
-      throw new Error("WebGL not supported on this device/browser");
-    }
-
-    // Initialize GPU Kernels
+    // Initialize GPU kernels
     this.initializeKernels();
-
-    // Initial render
-    this.renderToCanvas();
   }
 
   /**
-   * Initializes the diffusion and render kernels.
+   * Initializes the GPU kernels for rendering and diffusion.
    */
   private initializeKernels() {
-    // Diffusion Kernel: Updates nutrient levels based on neighboring cells
-    this.diffusionKernel = this.gpu
-      .createKernel(function (data: number[][]) {
-        const y = this.thread.y;
-        const x = this.thread.x;
-        const centerVal = data[y][x];
+    // Diffusion Kernel: Simulates nutrient diffusion across the grid
+    this.diffusionKernel = this.gpu.createKernel(function (grid: number[][], diffusionRate: number) {
+      const x = this.thread.x;
+      const y = this.thread.y;
 
-        let accum = centerVal;
-        let count = 1;
+      let sum = 0;
+      let count = 0;
 
-        // Check and accumulate neighboring cells
-        if (y > 0) {
-          accum += data[y - 1][x];
-          count++;
-        }
-        if (y < this.output.y - 1) {
-          accum += data[y + 1][x];
-          count++;
-        }
-        if (x > 0) {
-          accum += data[y][x - 1];
-          count++;
-        }
-        if (x < this.output.x - 1) {
-          accum += data[y][x + 1];
-          count++;
-        }
+      // Left
+      if (x > 0) {
+        sum += grid[y][x - 1];
+        count++;
+      }
 
-        const avg = accum / count;
-        // Update nutrient level with diffusion factor
-        return centerVal + (avg - centerVal) * this.constants.NUTRIENT_DIFFUSION;
-      })
-      .setOutput([this.cols, this.rows])
-      .setConstants({ NUTRIENT_DIFFUSION });
+      // Right
+      if (x < this.constants.cols - 1) {
+        sum += grid[y][x + 1];
+        count++;
+      }
 
-    // Render Kernel: Renders the nutrient levels as semi-transparent grayscale colors
-    this.renderKernel = this.gpu
-      .createKernel(function (data: number[][]) {
-        const y = this.thread.y;
-        const x = this.thread.x;
+      // Up
+      if (y > 0) {
+        sum += grid[y - 1][x];
+        count++;
+      }
 
-        const val = data[y][x];
-        // Invert nutrient value to map higher nutrients to darker shades
-        const c = Math.min(Math.max(1.0 - val / 100.0, 0), 1.0); // Inverted for dark colors
-        this.color(c, c, c, 0.3); // RGBA with alpha=0.3 for transparency
-      })
-      .setOutput([this.cols, this.rows])
-      .setGraphical(true)
-      .setCanvas(this.canvas)
-      .setContext(this.gl);
+      // Down
+      if (y < this.constants.rows - 1) {
+        sum += grid[y + 1][x];
+        count++;
+      }
+
+      // Calculate average of neighboring cells
+      const average = count > 0 ? sum / count : 0;
+
+      // Update nutrient level based on diffusion rate
+      let newVal = grid[y][x] + diffusionRate * (average - grid[y][x]);
+
+      // Ensure nutrient levels stay within bounds (0 to 100)
+      if (newVal > 100) newVal = 100;
+      if (newVal < 0) newVal = 0;
+
+      return newVal;
+    })
+    .setOutput([this.cols, this.rows])
+    .setConstants({ cols: this.cols, rows: this.rows })
+    .setImmutable(true); // Inputs won't change during kernel execution
+
+    // Render Kernel: Converts nutrient grid to RGBA pixels
+    this.renderKernel = this.gpu.createKernel(function (grid: number[][]) {
+      const y = this.thread.y;
+      const x = this.thread.x;
+
+      const nutrient = grid[y][x];
+
+      // Map nutrient levels to grayscale colors (higher nutrients = darker)
+      const colorValue = Math.floor((1.0 - nutrient / 100.0) * 255);
+
+      // Calculate radial distance from the center
+      const dx = x - this.constants.centerX;
+      const dy = y - this.constants.centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const radius = distance / this.constants.maxRadius;
+
+      let alpha = 1.0;
+      if (radius > this.constants.fadeStart) {
+        alpha = 1.0 - (radius - this.constants.fadeStart) / (this.constants.fadeEnd - this.constants.fadeStart);
+      }
+
+      // Clamp alpha between 0 and 1
+      if (alpha < 0) alpha = 0;
+      if (alpha > 1) alpha = 1;
+
+      this.color(colorValue / 255, colorValue / 255, colorValue / 255, alpha);
+    })
+    .setOutput([this.cols, this.rows])
+    .setGraphical(true) // Outputs to a GPU.js canvas
+    .setConstants({
+      centerX: this.cols / 2,
+      centerY: this.rows / 2,
+      maxRadius: Math.min(this.cols, this.rows) / 2,
+      fadeStart: FADE_START_FACTOR,
+      fadeEnd: FADE_END_FACTOR
+    })
+    .setImmutable(true); // Inputs won't change during kernel execution
   }
 
   /**
-   * Updates the nutrient environment by performing diffusion.
+   * Updates the nutrient grid by performing diffusion.
    */
   public updateEnvironment() {
-    // Convert the 1D nutrient array to a 2D array for the kernel
-    const data2D: number[][] = [];
-    for (let r = 0; r < this.rows; r++) {
+    // Perform diffusion step
+    const newGrid = this.diffusionKernel(this.nutrientGrid, NUTRIENT_DIFFUSION);
+
+    // Convert GPU.js output to a regular 2D array
+    const updatedGrid: number[][] = [];
+    for (let y = 0; y < this.rows; y++) {
       const row: number[] = [];
-      for (let c = 0; c < this.cols; c++) {
-        row.push(this.nutrientCPU[r * this.cols + c]);
+      for (let x = 0; x < this.cols; x++) {
+        row.push(newGrid[y][x]);
       }
-      data2D.push(row);
+      updatedGrid.push(row);
     }
 
-    // Perform diffusion using the GPU kernel
-    const output = this.diffusionKernel(data2D);
-
-    // Update the CPU nutrient array with the diffused values
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        this.nutrientCPU[r * this.cols + c] = output[r][c];
-      }
-    }
+    this.nutrientGrid = updatedGrid;
   }
 
   /**
-   * Renders the current nutrient state onto the environment canvas.
+   * Renders the nutrient environment onto its canvas.
    */
   public renderToCanvas() {
-    // Convert the 1D nutrient array to a 2D array for the render kernel
-    const data2D: number[][] = [];
-    for (let r = 0; r < this.rows; r++) {
-      const row: number[] = [];
-      for (let c = 0; c < this.cols; c++) {
-        row.push(this.nutrientCPU[r * this.cols + c]);
-      }
-      data2D.push(row);
-    }
-
-    // Perform rendering using the GPU kernel
-    this.renderKernel(data2D);
+    this.renderKernel(this.nutrientGrid);
+    this.ctx.drawImage(this.renderKernel.canvas, 0, 0, this.canvas.width, this.canvas.height);
   }
 
   /**
-   * Draws the environment canvas onto the specified canvas context.
-   * @param targetCtx - The 2D rendering context of the target canvas.
-   * @param targetWidth - Width of the target canvas.
-   * @param targetHeight - Height of the target canvas.
+   * Draws the nutrient environment onto a target context (e.g., main canvas).
+   * @param targetCtx - The rendering context to draw onto.
+   * @param targetWidth - The width of the target context.
+   * @param targetHeight - The height of the target context.
    */
   public drawEnvOnTargetContext(targetCtx: CanvasRenderingContext2D, targetWidth: number, targetHeight: number) {
-    // Draw the environment canvas onto the target canvas, scaling it appropriately
-    targetCtx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, targetWidth, targetHeight);
+    targetCtx.globalAlpha = BACKGROUND_ALPHA; // Apply transparency based on constants
+    targetCtx.drawImage(this.canvas, 0, 0, targetWidth, targetHeight);
+    targetCtx.globalAlpha = 1.0; // Reset alpha
   }
 
   /**
-   * Consumes nutrient from a specific (x, y) location.
+   * Consumes resources (nutrients) from the environment at a specific (x, y) position.
    * @param x - X-coordinate in pixels.
    * @param y - Y-coordinate in pixels.
-   * @param amt - Amount of nutrient to consume.
-   * @returns The actual amount consumed.
+   * @param amount - Amount of nutrients to consume.
+   * @returns The actual amount consumed (may be less if not enough nutrients).
    */
-  public consumeResource(x: number, y: number, amt: number): number {
-    // Map pixel coordinates to grid cells
-    const c = Math.floor(x / ENV_GRID_CELL_SIZE);
-    const r = Math.floor(y / ENV_GRID_CELL_SIZE);
+  public consumeResource(x: number, y: number, amount: number): number {
+    // Convert pixel coordinates to grid indices
+    const gridX = Math.floor(x / ENV_GRID_CELL_SIZE);
+    const gridY = Math.floor(y / ENV_GRID_CELL_SIZE);
 
     // Boundary check
-    if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return 0;
+    if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
+      return 0;
+    }
 
-    const idx = r * this.cols + c;
-    const available = this.nutrientCPU[idx];
-    const consumed = Math.min(available, amt);
-    this.nutrientCPU[idx] = available - consumed;
+    const available = this.nutrientGrid[gridY][gridX];
+    const consumed = Math.min(amount, available);
+    this.nutrientGrid[gridY][gridX] -= consumed;
 
     return consumed;
   }
 
   /**
-   * Getter for the environment canvas (optional).
-   * Useful for debugging or layered canvas setups.
-   * @returns The environment HTMLCanvasElement.
+   * Resets the nutrient grid to base nutrient levels.
    */
-  public getCanvas(): HTMLCanvasElement {
-    return this.canvas;
+  public resetEnvironment() {
+    this.nutrientGrid = [];
+    for (let y = 0; y < this.rows; y++) {
+      const row: number[] = [];
+      for (let x = 0; x < this.cols; x++) {
+        row.push(BASE_NUTRIENT);
+      }
+      this.nutrientGrid.push(row);
+    }
   }
 }
