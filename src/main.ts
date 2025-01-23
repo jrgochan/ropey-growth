@@ -1,103 +1,120 @@
 // src/main.ts
 
+import { GrowthManager } from "./growth.js"; // Ensure correct path and extension
+import { Perlin } from "./Perlin.js";
 import { EnvironmentGPU } from "./environmentGPU.js";
 import { MycelialNetwork } from "./mycelialNetwork.js";
-import { GrowthManager } from "./growth.js";
-import { Perlin } from "./Perlin.js";
-import {
-  MAIN_BRANCH_COUNT,
-  ENV_GRID_CELL_SIZE,
-  NUTRIENT_POCKET_RADIUS,
-  NUTRIENT_POCKET_AMOUNT
-} from "./constants.js";
+import { config } from "./constants.js"; // Import the config object
 
-// Get references to canvases
-const mainCanvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
-const envCanvas = document.getElementById("envCanvas") as HTMLCanvasElement;
+// Import dat.GUI (ensure you have installed it via npm)
+import * as dat from 'dat.gui';
 
-// Get 2D rendering contexts
-const mainCtx = mainCanvas.getContext("2d")!;
-const envCtx = envCanvas.getContext("2d")!;
+// Initialize canvas and context
+const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
+const ctx = canvas.getContext('2d');
 
-// Set canvas dimensions
-const width = window.innerWidth;
-const height = window.innerHeight;
-mainCanvas.width = width;
-mainCanvas.height = height;
-envCanvas.width = width;
-envCanvas.height = height;
-
-// Initialize Perlin Noise Generator
-const perlin = new Perlin();
-
-// Initialize GPU Environment
-const envGPU = new EnvironmentGPU(width, height, envCanvas);
-
-// Initialize Mycelial Network
-const network = new MycelialNetwork();
-
-// Initialize Growth Manager with reference to EnvironmentGPU and MycelialNetwork
-const centerX = width / 2;
-const centerY = height / 2;
-const growth = new GrowthManager(
-  mainCtx,
-  width,
-  height,
-  centerX,
-  centerY,
-  perlin,
-  envGPU,
-  network
-);
-
-// Initialize the growth simulation
-growth.init();
-
-// Variable to track the last nutrient pocket creation time
-let lastPocketCreationTime = 0;
-
-// Add event listener for mouse clicks to create nutrient pockets
-mainCanvas.addEventListener('click', (event) => {
-  const rect = mainCanvas.getBoundingClientRect();
-  const pixelX = event.clientX - rect.left;
-  const pixelY = event.clientY - rect.top;
-
-  const gridX = Math.floor(pixelX / ENV_GRID_CELL_SIZE);
-  const gridY = Math.floor(pixelY / ENV_GRID_CELL_SIZE);
-
-  envGPU.createNutrientPocket(gridX, gridY, NUTRIENT_POCKET_RADIUS, NUTRIENT_POCKET_AMOUNT * 2);
-  console.log(`User-created nutrient pocket at (${gridX}, ${gridY})`);
-});
-
-/**
- * The main animation loop.
- * @param currentTime - The current timestamp in milliseconds.
- */
-function animate(currentTime: number) {
-  // 1. Update the nutrient environment (diffusion and nutrient pockets)
-  envGPU.updateEnvironment(currentTime);
-
-  // 2. Render the nutrient environment onto its canvas
-  envGPU.renderToCanvas();
-
-  // 3. Draw nutrient environment onto mainCanvas with transparency
-  envGPU.drawEnvOnTargetContext(mainCtx, mainCanvas.width, mainCanvas.height);
-
-  // 4. Update and draw the mycelial growth lines on the main canvas
-  growth.updateAndDraw(currentTime);
-
-  // 5. Optionally, create new nutrient pockets at random intervals
-  if (currentTime - lastPocketCreationTime > 5000) { // Every 5 seconds for testing
-    const randomX = Math.floor(Math.random() * envGPU.cols);
-    const randomY = Math.floor(Math.random() * envGPU.rows);
-    envGPU.createNutrientPocket(randomX, randomY, NUTRIENT_POCKET_RADIUS, NUTRIENT_POCKET_AMOUNT * 2); // Increased amount
-    console.log(`Created nutrient pocket at (${randomX}, ${randomY})`);
-    lastPocketCreationTime = currentTime;
-  }
-
-  // 6. Continue the animation loop
-  requestAnimationFrame(animate);
+if (!ctx) {
+  throw new Error('Canvas rendering context not available.');
 }
 
-// Start the animation loop
-requestAnimationFrame(animate);
+const width = canvas.width;
+const height = canvas.height;
+const centerX = width / 2;
+const centerY = height / 2;
+
+// Initialize dependencies
+const perlin = new Perlin();
+const envGPU = new EnvironmentGPU(width, height);
+const network = new MycelialNetwork();
+
+// Initialize GrowthManager
+let growth = new GrowthManager(ctx, width, height, centerX, centerY, perlin, envGPU, network);
+growth.init();
+
+// Initialize dat.GUI
+const gui = new dat.GUI();
+
+// Helper function to reset the simulation
+function resetSimulation() {
+  growth.clear();
+  growth = new GrowthManager(ctx, width, height, centerX, centerY, perlin, envGPU, network);
+  growth.init();
+  console.log("Simulation reset.");
+}
+
+// Create GUI folders and controllers
+
+// Canvas & Growth Parameters
+const growthFolder = gui.addFolder('Growth Parameters');
+growthFolder.add(config, 'GROWTH_RADIUS_FACTOR', 0.5, 1.0).step(0.01).name('Growth Radius Factor').onChange(resetSimulation);
+growthFolder.add(config, 'MAIN_BRANCH_COUNT', 10, 100).step(1).name('Main Branch Count').onChange(resetSimulation);
+growthFolder.add(config, 'STEP_SIZE', 1, 5).step(0.1).name('Step Size').onChange(resetSimulation);
+growthFolder.add(config, 'GROWTH_SPEED_MULTIPLIER', 0.1, 1.0).step(0.1).name('Growth Speed').onChange(resetSimulation);
+growthFolder.add(config, 'BASE_LIFE', 1000, 5000).step(100).name('Base Life').onChange(resetSimulation);
+growthFolder.add(config, 'BRANCH_DECAY', 0.5, 1.0).step(0.05).name('Branch Decay').onChange(resetSimulation);
+growthFolder.add(config, 'BRANCH_CHANCE', 0.0, 0.2).step(0.01).name('Branch Chance').onChange(resetSimulation);
+growthFolder.add(config, 'MAX_BRANCH_DEPTH', 10, 100).step(5).name('Max Branch Depth').onChange(resetSimulation);
+growthFolder.add(config, 'ANGLE_DRIFT_STRENGTH', 0.0, 0.2).step(0.01).name('Angle Drift').onChange(resetSimulation);
+growthFolder.add(config, 'WIGGLE_STRENGTH', 0.0, 1.0).step(0.05).name('Wiggle Strength').onChange(resetSimulation);
+growthFolder.add(config, 'PERLIN_SCALE', 0.01, 0.2).step(0.01).name('Perlin Scale').onChange(resetSimulation);
+growthFolder.open();
+
+// Environmental Parameters
+const envFolder = gui.addFolder('Environmental Parameters');
+envFolder.add(config, 'ENV_GRID_CELL_SIZE', 0.5, 5).step(0.5).name('Grid Cell Size').onChange(resetSimulation);
+envFolder.add(config, 'BASE_NUTRIENT', 50, 200).step(10).name('Base Nutrient').onChange(resetSimulation);
+envFolder.add(config, 'NUTRIENT_DIFFUSION', 0.0, 0.5).step(0.05).name('Nutrient Diffusion').onChange(resetSimulation);
+envFolder.add(config, 'NUTRIENT_CONSUMPTION_RATE', 0.1, 5.0).step(0.1).name('Nutrient Consumption').onChange(resetSimulation);
+envFolder.open();
+
+// Nutrient Pockets Parameters
+const pocketFolder = gui.addFolder('Nutrient Pockets');
+pocketFolder.add(config, 'NUTRIENT_POCKET_RADIUS', 1, 5).step(1).name('Pocket Radius').onChange(resetSimulation);
+pocketFolder.add(config, 'NUTRIENT_POCKET_AMOUNT', 50, 200).step(10).name('Pocket Amount').onChange(resetSimulation);
+pocketFolder.add(config, 'NUTRIENT_POCKET_DECAY_RATE', 0.1, 1.0).step(0.1).name('Pocket Decay Rate').onChange(resetSimulation);
+pocketFolder.open();
+
+// Mycelial Network Parameters
+const networkFolder = gui.addFolder('Mycelial Network');
+networkFolder.add(config, 'INITIAL_RESOURCE_PER_TIP', 1000, 5000).step(100).name('Initial Resource per Tip').onChange(resetSimulation);
+networkFolder.add(config, 'RESOURCE_FLOW_RATE', 0.5, 2.0).step(0.1).name('Resource Flow Rate').onChange(resetSimulation);
+networkFolder.open();
+
+// Growth Simulation Parameters
+const simFolder = gui.addFolder('Simulation Parameters');
+simFolder.add(config, 'TIME_LAPSE_FACTOR', 1, 10).step(1).name('Time Lapse Factor').onChange(resetSimulation);
+simFolder.add(config, 'SECONDARY_FAN_COUNT', 1, 5).step(1).name('Secondary Fan Count').onChange(resetSimulation);
+simFolder.add(config, 'WIDER_SECONDARY_ANGLE', 0, Math.PI / 2).step(0.1).name('Secondary Angle').onChange(resetSimulation);
+simFolder.open();
+
+// Rendering Parameters
+const renderFolder = gui.addFolder('Rendering Parameters');
+renderFolder.add(config, 'BACKGROUND_ALPHA', 0.0, 0.1).step(0.01).name('Background Alpha').onChange(resetSimulation);
+renderFolder.add(config, 'FADE_START_FACTOR', 0.5, 1.0).step(0.05).name('Fade Start Factor').onChange(resetSimulation);
+renderFolder.add(config, 'FADE_END_FACTOR', 0.8, 1.2).step(0.05).name('Fade End Factor').onChange(resetSimulation);
+renderFolder.add(config, 'SHADOW_BLUR', 0, 20).step(1).name('Shadow Blur').onChange(resetSimulation);
+renderFolder.addColor(config, 'SHADOW_COLOR').name('Shadow Color').onChange(resetSimulation);
+renderFolder.open();
+
+// Line Rendering Parameters
+const lineFolder = gui.addFolder('Line Rendering');
+lineFolder.add(config, 'MAIN_LINE_WIDTH', 1, 5).step(0.5).name('Main Line Width').onChange(resetSimulation);
+lineFolder.add(config, 'SECONDARY_LINE_WIDTH', 0.5, 3).step(0.5).name('Secondary Line Width').onChange(resetSimulation);
+lineFolder.add(config, 'MAIN_ALPHA', 0.5, 1.0).step(0.05).name('Main Alpha').onChange(resetSimulation);
+lineFolder.add(config, 'SECONDARY_ALPHA', 0.3, 1.0).step(0.05).name('Secondary Alpha').onChange(resetSimulation);
+lineFolder.open();
+
+// Color Parameters
+const colorFolder = gui.addFolder('Color Parameters');
+colorFolder.add(config, 'BASE_HUE', 0, 360).step(1).name('Base Hue').onChange(resetSimulation);
+colorFolder.add(config, 'BASE_LIGHTNESS', 50, 100).step(1).name('Base Lightness').onChange(resetSimulation);
+colorFolder.add(config, 'LIGHTNESS_STEP', 1, 10).step(1).name('Lightness Step').onChange(resetSimulation);
+colorFolder.open();
+
+// Miscellaneous Parameters
+const miscFolder = gui.addFolder('Miscellaneous');
+miscFolder.add(config, 'ANASTOMOSIS_RADIUS', 1, 10).step(1).name('Anastomosis Radius').onChange(resetSimulation);
+miscFolder.open();
+
+// Add a button to reset the simulation manually
+gui.add({ reset: resetSimulation }, 'reset').name('Reset Simulation');

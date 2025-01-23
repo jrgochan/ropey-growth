@@ -1,324 +1,165 @@
 // src/environmentGPU.ts
 
+import { config } from './constants.js'; // Import the config object
+
 /**
- * environmentGPU.ts
- *
- * Manages the nutrient environment for the mycelial simulation.
- * - Initializes and updates the nutrient grid.
- * - Simulates nutrient diffusion.
- * - Handles resource consumption by hyphal tips.
- * - Creates nutrient pockets to simulate resource-rich areas.
- * - Renders the nutrient environment onto a canvas.
+ * EnvironmentGPU class manages the environmental resources
+ * such as nutrients that hypha tips consume.
  */
-
-import { GPU } from 'gpu.js';
-import {
-  ENV_GRID_CELL_SIZE,
-  BASE_NUTRIENT,
-  NUTRIENT_DIFFUSION,
-  BACKGROUND_ALPHA,
-  FADE_START_FACTOR,
-  FADE_END_FACTOR,
-  NUTRIENT_POCKET_RADIUS,
-  NUTRIENT_POCKET_AMOUNT,
-  NUTRIENT_POCKET_DECAY_RATE,
-  REPLENISHMENT_INTERVAL,
-  REPLENISHMENT_AMOUNT
-} from './constants.js';
-
 export class EnvironmentGPU {
-  private gpu: GPU;
-  private renderKernel: any;
-  private diffusionKernel: any;
+  private width: number;
+  private height: number;
   private nutrientGrid: number[][];
-  public cols: number;
-  public rows: number;
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-
-  // Nutrient Pockets Tracking
-  private nutrientPockets: { x: number; y: number; radius: number; amount: number }[] = [];
-
-  // Replenishment Timer
-  private lastReplenishmentTime: number = 0;
-
-  constructor(width: number, height: number, canvas: HTMLCanvasElement) {
-    this.gpu = new GPU();
-
-    // Calculate grid dimensions based on cell size
-    this.cols = Math.floor(width / ENV_GRID_CELL_SIZE);
-    this.rows = Math.floor(height / ENV_GRID_CELL_SIZE);
-
-    // Initialize nutrient grid with base nutrient levels
-    this.nutrientGrid = [];
-    for (let y = 0; y < this.rows; y++) {
-      const row: number[] = [];
-      for (let x = 0; x < this.cols; x++) {
-        row.push(BASE_NUTRIENT);
-      }
-      this.nutrientGrid.push(row);
-    }
-
-    this.canvas = canvas;
-    this.canvas.width = this.cols;
-    this.canvas.height = this.rows;
-    this.ctx = this.canvas.getContext('2d')!;
-
-    // Initialize GPU kernels
-    this.initializeKernels();
-  }
 
   /**
-   * Initializes the GPU kernels for rendering and diffusion.
+   * Constructor initializes the nutrient grid based on canvas dimensions.
+   * @param width - Width of the canvas.
+   * @param height - Height of the canvas.
    */
-  private initializeKernels() {
-    // Diffusion Kernel: Simulates nutrient diffusion across the grid
-    this.diffusionKernel = this.gpu.createKernel(function (grid: number[][], diffusionRate: number) {
-      const x = this.thread.x;
-      const y = this.thread.y;
-
-      let sum = 0;
-      let count = 0;
-
-      // Left Neighbor
-      if (x > 0) {
-        sum += grid[y][x - 1];
-        count++;
-      }
-
-      // Right Neighbor
-      if (x < this.constants.cols - 1) {
-        sum += grid[y][x + 1];
-        count++;
-      }
-
-      // Up Neighbor
-      if (y > 0) {
-        sum += grid[y - 1][x];
-        count++;
-      }
-
-      // Down Neighbor
-      if (y < this.constants.rows - 1) {
-        sum += grid[y + 1][x];
-        count++;
-      }
-
-      // Calculate average of neighboring cells
-      const average = count > 0 ? sum / count : 0;
-
-      // Update nutrient level based on diffusion rate
-      let newVal = grid[y][x] + diffusionRate * (average - grid[y][x]);
-
-      // Ensure nutrient levels stay within bounds (0 to 100)
-      if (newVal > 100) newVal = 100;
-      if (newVal < 0) newVal = 0;
-
-      return newVal;
-    })
-    .setOutput([this.cols, this.rows])
-    .setConstants({ cols: this.cols, rows: this.rows })
-    .setImmutable(true); // Inputs won't change during kernel execution
-
-    // Render Kernel: Converts nutrient grid to RGBA pixels
-    this.renderKernel = this.gpu.createKernel(function (grid: number[][]) {
-      const y = this.thread.y;
-      const x = this.thread.x;
-
-      const nutrient = grid[y][x];
-
-      // Map nutrient levels to dark greens (mimicking natural nutrient-rich soil)
-      const greenValue = Math.floor((nutrient / 100.0) * 255);
-
-      // Calculate radial distance from the center
-      const dx = x - this.constants.centerX;
-      const dy = y - this.constants.centerY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const radius = distance / this.constants.maxRadius;
-
-      let alpha = 1.0;
-      if (radius > this.constants.fadeStart) {
-        alpha = 1.0 - (radius - this.constants.fadeStart) / (this.constants.fadeEnd - this.constants.fadeStart);
-      }
-
-      // Clamp alpha between 0 and 1
-      if (alpha < 0) alpha = 0;
-      if (alpha > 1) alpha = 1;
-
-      this.color(0, greenValue / 255, 0, alpha); // Dark green based on nutrient level
-    })
-    .setOutput([this.cols, this.rows])
-    .setGraphical(true) // Outputs to a GPU.js canvas
-    .setConstants({
-      centerX: this.cols / 2,
-      centerY: this.rows / 2,
-      maxRadius: Math.min(this.cols, this.rows) / 2,
-      fadeStart: FADE_START_FACTOR,
-      fadeEnd: FADE_END_FACTOR
-    })
-    .setImmutable(true); // Inputs won't change during kernel execution
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    this.initializeNutrientGrid();
+    console.log(`EnvironmentGPU initialized with width: ${width}, height: ${height}`);
   }
 
   /**
-   * Updates the nutrient grid by performing diffusion and managing nutrient pockets.
-   * Call this method once per simulation step.
-   * @param currentTime - The current timestamp in milliseconds.
+   * Initializes the nutrient grid with base nutrient levels.
    */
-  public updateEnvironment(currentTime: number) {
-    // Perform diffusion step
-    const newGrid = this.diffusionKernel(this.nutrientGrid, NUTRIENT_DIFFUSION);
-
-    // Convert GPU.js output to a regular 2D array
-    const updatedGrid: number[][] = [];
-    for (let y = 0; y < this.rows; y++) {
-      const row: number[] = [];
-      for (let x = 0; x < this.cols; x++) {
-        row.push(newGrid[y][x]);
-      }
-      updatedGrid.push(row);
-    }
-
-    this.nutrientGrid = updatedGrid;
-
-    // Handle Nutrient Pockets Decay
-    this.decayNutrientPockets();
-
-    // Handle Nutrient Replenishment
-    if (currentTime - this.lastReplenishmentTime > REPLENISHMENT_INTERVAL) {
-      this.replenishNutrients(REPLENISHMENT_AMOUNT);
-      this.lastReplenishmentTime = currentTime;
-    }
+  private initializeNutrientGrid() {
+    const cols = Math.ceil(this.width / config.ENV_GRID_CELL_SIZE);
+    const rows = Math.ceil(this.height / config.ENV_GRID_CELL_SIZE);
+    this.nutrientGrid = Array.from({ length: cols }, () =>
+      Array.from({ length: rows }, () => config.BASE_NUTRIENT)
+    );
+    console.log(`Nutrient grid initialized with ${cols} columns and ${rows} rows.`);
   }
 
   /**
-   * Renders the nutrient environment onto its canvas.
-   * Call this method after updating the environment.
-   */
-  public renderToCanvas() {
-    this.renderKernel(this.nutrientGrid);
-    this.ctx.drawImage(this.renderKernel.canvas, 0, 0, this.canvas.width, this.canvas.height);
-  }
-
-  /**
-   * Draws the nutrient environment onto a target context (e.g., main canvas).
-   * @param targetCtx - The rendering context to draw onto.
-   * @param targetWidth - The width of the target context.
-   * @param targetHeight - The height of the target context.
-   */
-  public drawEnvOnTargetContext(targetCtx: CanvasRenderingContext2D, targetWidth: number, targetHeight: number) {
-    targetCtx.globalAlpha = BACKGROUND_ALPHA; // Apply transparency based on constants
-    targetCtx.drawImage(this.canvas, 0, 0, targetWidth, targetHeight);
-    targetCtx.globalAlpha = 1.0; // Reset alpha
-  }
-
-  /**
-   * Consumes resources (nutrients) from the environment at a specific (x, y) position.
-   * @param x - X-coordinate in pixels.
-   * @param y - Y-coordinate in pixels.
-   * @param amount - Amount of nutrients to consume.
-   * @returns The actual amount consumed (may be less if not enough nutrients).
+   * Consumes nutrients from the grid based on the hypha tip's position.
+   * @param x - X-coordinate of the hypha tip.
+   * @param y - Y-coordinate of the hypha tip.
+   * @param amount - Amount of nutrient to consume.
+   * @returns The actual amount of nutrient consumed.
    */
   public consumeResource(x: number, y: number, amount: number): number {
-    // Convert pixel coordinates to grid indices
-    const gridX = Math.floor(x / ENV_GRID_CELL_SIZE);
-    const gridY = Math.floor(y / ENV_GRID_CELL_SIZE);
+    const gridX = Math.floor(x / config.ENV_GRID_CELL_SIZE);
+    const gridY = Math.floor(y / config.ENV_GRID_CELL_SIZE);
 
-    // Boundary check
-    if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
+    if (
+      gridX >= 0 &&
+      gridX < this.nutrientGrid.length &&
+      gridY >= 0 &&
+      gridY < this.nutrientGrid[0].length
+    ) {
+      const available = this.nutrientGrid[gridX][gridY];
+      const consumed = Math.min(amount, available);
+      this.nutrientGrid[gridX][gridY] -= consumed;
+      console.log(`Consumed ${consumed} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Remaining: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+      return consumed;
+    } else {
+      console.warn(`Hypha tip at (${x.toFixed(2)}, ${y.toFixed(2)}) is out of nutrient grid bounds.`);
       return 0;
     }
-
-    const available = this.nutrientGrid[gridY][gridX];
-    const consumed = Math.min(amount, available);
-    this.nutrientGrid[gridY][gridX] -= consumed;
-
-    return consumed;
   }
 
   /**
-   * Creates a nutrient-rich circular pocket at the specified grid coordinates.
-   * @param x - X-coordinate in grid cells.
-   * @param y - Y-coordinate in grid cells.
-   * @param radius - Radius of the pocket in grid cells.
-   * @param amount - Amount of nutrient to add to each cell within the pocket.
+   * Adds nutrients to a specific location, e.g., during replenishment.
+   * @param x - X-coordinate where nutrients are added.
+   * @param y - Y-coordinate where nutrients are added.
+   * @param amount - Amount of nutrient to add.
    */
-  public createNutrientPocket(x: number, y: number, radius: number, amount: number) {
-    for (let j = y - radius; j <= y + radius; j++) {
-      for (let i = x - radius; i <= x + radius; i++) {
-        if (i >= 0 && i < this.cols && j >= 0 && j < this.rows) {
-          const distance = Math.hypot(i - x, j - y);
-          if (distance <= radius) {
-            this.nutrientGrid[j][i] = Math.min(this.nutrientGrid[j][i] + amount, 100); // Clamp to max nutrient level
-            // Track the nutrient pocket for decay
-            this.nutrientPockets.push({ x: i, y: j, radius, amount });
+  public addNutrient(x: number, y: number, amount: number) {
+    const gridX = Math.floor(x / config.ENV_GRID_CELL_SIZE);
+    const gridY = Math.floor(y / config.ENV_GRID_CELL_SIZE);
+
+    if (
+      gridX >= 0 &&
+      gridX < this.nutrientGrid.length &&
+      gridY >= 0 &&
+      gridY < this.nutrientGrid[0].length
+    ) {
+      this.nutrientGrid[gridX][gridY] += amount;
+      console.log(`Added ${amount} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Total: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+    } else {
+      console.warn(`Cannot add nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}). Position is out of nutrient grid bounds.`);
+    }
+  }
+
+  /**
+   * Handles nutrient diffusion across the grid.
+   * This method should be called periodically to simulate nutrient spread.
+   */
+  public diffuseNutrients() {
+    const cols = this.nutrientGrid.length;
+    const rows = this.nutrientGrid[0].length;
+    const newGrid: number[][] = Array.from({ length: cols }, () =>
+      Array.from({ length: rows }, () => 0)
+    );
+
+    for (let x = 0; x < cols; x++) {
+      for (let y = 0; y < rows; y++) {
+        let total = this.nutrientGrid[x][y];
+        let count = 1;
+
+        // Check neighboring cells
+        const neighbors = [
+          [x - 1, y],
+          [x + 1, y],
+          [x, y - 1],
+          [x, y + 1],
+        ];
+
+        for (const [nx, ny] of neighbors) {
+          if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+            total += this.nutrientGrid[nx][ny];
+            count++;
           }
+        }
+
+        // Calculate average and apply diffusion rate
+        newGrid[x][y] = this.nutrientGrid[x][y] + config.NUTRIENT_DIFFUSION * ((total / count) - this.nutrientGrid[x][y]);
+      }
+    }
+
+    this.nutrientGrid = newGrid;
+    console.log(`Nutrients diffused across the grid.`);
+  }
+
+  /**
+   * Handles periodic replenishment of nutrients.
+   * This method should be scheduled to run at intervals defined in config.
+   */
+  public replenishNutrients() {
+    // Example: Replenish nutrients in random locations
+    for (let i = 0; i < 10; i++) { // Number of replenishment pockets
+      const x = Math.random() * this.width;
+      const y = Math.random() * this.height;
+      this.addNutrient(x, y, config.REPLENISHMENT_AMOUNT);
+    }
+    console.log(`Nutrients replenished.`);
+  }
+
+  /**
+   * Draws the nutrient grid onto the canvas for visualization.
+   * This is optional and can be used for debugging purposes.
+   * @param ctx - Canvas rendering context.
+   */
+  public drawNutrientGrid(ctx: CanvasRenderingContext2D) {
+    for (let x = 0; x < this.nutrientGrid.length; x++) {
+      for (let y = 0; y < this.nutrientGrid[0].length; y++) {
+        const nutrient = this.nutrientGrid[x][y];
+        if (nutrient > 0) {
+          ctx.fillStyle = `rgba(0, 255, 0, ${nutrient / config.BASE_NUTRIENT})`; // Green with alpha based on nutrient level
+          ctx.fillRect(
+            x * config.ENV_GRID_CELL_SIZE,
+            y * config.ENV_GRID_CELL_SIZE,
+            config.ENV_GRID_CELL_SIZE,
+            config.ENV_GRID_CELL_SIZE
+          );
         }
       }
     }
-  }
-
-  /**
-   * Decays nutrient pockets over time to simulate natural depletion.
-   */
-  private decayNutrientPockets() {
-    for (let i = this.nutrientPockets.length - 1; i >= 0; i--) {
-      const pocket = this.nutrientPockets[i];
-      // Decay the nutrient amount
-      pocket.amount -= NUTRIENT_POCKET_DECAY_RATE;
-      if (pocket.amount <= 0) {
-        // Remove the pocket from tracking
-        this.nutrientPockets.splice(i, 1);
-        continue;
-      }
-      // Apply decay to the nutrient grid
-      if (this.nutrientGrid[pocket.y][pocket.x] > BASE_NUTRIENT) {
-        this.nutrientGrid[pocket.y][pocket.x] = Math.max(this.nutrientGrid[pocket.y][pocket.x] - NUTRIENT_POCKET_DECAY_RATE, BASE_NUTRIENT);
-      }
-    }
-  }
-
-  /**
-   * Replenishes nutrients uniformly across the grid.
-   * @param amount - Amount of nutrient to add to each cell.
-   */
-  public replenishNutrients(amount: number) {
-    for (let y = 0; y < this.rows; y++) {
-      for (let x = 0; x < this.cols; x++) {
-        this.nutrientGrid[y][x] = Math.min(this.nutrientGrid[y][x] + amount, 100); // Clamp to max nutrient level
-      }
-    }
-  }
-
-  /**
-   * Retrieves nutrient level at a specific (x, y) position.
-   * @param x - X-coordinate in pixels.
-   * @param y - Y-coordinate in pixels.
-   * @returns Nutrient level (0 to 100).
-   */
-  public getNutrientAt(x: number, y: number): number {
-    const gridX = Math.floor(x / ENV_GRID_CELL_SIZE);
-    const gridY = Math.floor(y / ENV_GRID_CELL_SIZE);
-
-    if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
-      return 0;
-    }
-
-    return this.nutrientGrid[gridY][gridX];
-  }
-
-  /**
-   * Resets the nutrient grid to base nutrient levels and clears all nutrient pockets.
-   */
-  public resetEnvironment() {
-    this.nutrientGrid = [];
-    for (let y = 0; y < this.rows; y++) {
-      const row: number[] = [];
-      for (let x = 0; x < this.cols; x++) {
-        row.push(BASE_NUTRIENT);
-      }
-      this.nutrientGrid.push(row);
-    }
-    this.nutrientPockets = [];
-    this.lastReplenishmentTime = 0;
+    console.log(`Nutrient grid drawn on canvas.`);
   }
 }

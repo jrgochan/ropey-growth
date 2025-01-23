@@ -1,33 +1,28 @@
-<!-- index.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Mycelial Network Simulation</title>
   <style>
-    body, html {
+    body {
       margin: 0;
-      padding: 0;
       overflow: hidden;
-      background-color: black;
+      background-color: black; /* Optional: Set a background color */
     }
     canvas {
       display: block;
     }
+    /* Optional: Position the dat.GUI panel */
+    .dg.main {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000; /* Ensure the GUI is above the canvas */
+    }
   </style>
 </head>
 <body>
-  <!-- Main Canvas for Hyphal Growth -->
-  <canvas id="mainCanvas"></canvas>
-  
-  <!-- Environment Canvas (Hidden) for Nutrient Simulation -->
-  <canvas id="envCanvas" style="display: none;"></canvas>
-  
-  <!-- Include GPU.js via CDN or install it via npm and bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/gpu.js@2.10.0/dist/gpu-browser.min.js"></script>
-  
-  <!-- Include the compiled main.js script -->
-  <script type="module" src="./src/main.ts"></script>
+  <canvas id="myCanvas" width="800" height="600"></canvas>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
