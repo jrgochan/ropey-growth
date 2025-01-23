@@ -1,33 +1,33 @@
 /**
  * constants.ts
- * 
- * Minimal parameters for a guaranteed visible mycelium-like draw.
+ *
+ * Ultra-simple parameters to ensure a calm, radial growth
+ * from the center without fractal chaos.
  */
 
-// Petri-dish factor
-export const GROWTH_RADIUS_FACTOR = 0.45;
-export const MAIN_TRUNK_COUNT = 10;  // 10 lines from center
+export const GROWTH_RADIUS_FACTOR = 0.8; // radius is 80% of min dimension
+export const MAIN_BRANCH_COUNT = 10;     // moderate # of main trunks
+export const BASE_LIFE = 500;            // each trunk's lifespan
+export const BRANCH_CHANCE = 0.1;        // 10% chance of branching
+export const MAX_BRANCH_DEPTH = 5;       // secondaries won't nest too deep
+export const STEP_SIZE = 1.0;            // how far each step
+export const TIME_LAPSE_FACTOR = 1;      // no time-lapse
 
-// Each trunk has enough "life" to reach near the boundary
-export const BASE_LIFE = 1000;  
-
-// Step size
-export const STEP_SIZE = 2.0; 
-
-// Wiggle & drift
+// Minimal wiggle
 export const PERLIN_SCALE = 0.01;
-export const ANGLE_DRIFT_STRENGTH = 0.1;
-export const WIGGLE_STRENGTH = 1.0;
+export const ANGLE_DRIFT_STRENGTH = 0.01;
+export const WIGGLE_STRENGTH = 0.2;
 
-// Time-lapse
-export const TIME_LAPSE_FACTOR = 2;
-
-// Lines
-export const MAIN_LINE_WIDTH = 1.8;
-export const MAIN_ALPHA = 0.9;
-export const BASE_HUE = 50;       // near-white/yellow
-export const BASE_LIGHTNESS = 95; // bright
-
-// Petri dish fade near boundary
+// No environment resource or anastomosis => skip
+// Rendering
+export const BACKGROUND_ALPHA = 0.02;
 export const FADE_START_FACTOR = 0.9;
 export const FADE_END_FACTOR = 1.0;
+
+// Lines
+export const MAIN_LINE_WIDTH = 3;
+export const MAIN_ALPHA = 0.8;
+export const SECONDARY_LINE_WIDTH = 1;
+export const SECONDARY_ALPHA = 0.5;
+export const BASE_HUE = 50;
+export const BASE_LIGHTNESS = 95;

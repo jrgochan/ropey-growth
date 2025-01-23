@@ -1,7 +1,7 @@
 /***************************************************
  * main.ts
  *
- * Entry point for minimal lines example.
+ * Minimal runner: sets up canvas, Perlin, GrowthManager
  ***************************************************/
 
 import { GrowthManager } from "./growth.js";
@@ -31,7 +31,9 @@ let perlin: Perlin;
 
 function setup() {
   perlin = new Perlin();
-  growth = new GrowthManager(ctx, width, height, width/2, height/2, perlin);
+  const cx = width / 2;
+  const cy = height / 2;
+  growth = new GrowthManager(ctx, width, height, cx, cy, perlin);
   growth.init();
 }
 

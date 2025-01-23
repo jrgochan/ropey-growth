@@ -1,16 +1,18 @@
 {
-  "name": "ropey-growth-minimal",
+  "name": "ropey-growth-gpujs",
   "version": "1.0.0",
-  "description": "A minimal mycelium lines example that actually draws filaments from center.",
+  "description": "An advanced mycelium simulation with environment updates accelerated by GPU.js",
   "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "lite-server",
-    "dev": "concurrently \"tsc -w\" \"lite-server\""
+    "dev": "vite"
   },
   "devDependencies": {
-    "typescript": "^5.2.2",
+    "concurrently": "^7.6.0",
+    "gpu.js": "^2.16.0",
     "lite-server": "^2.6.1",
-    "concurrently": "^7.6.0"
+    "typescript": "^5.2.2",
+    "vite": "^4.0.0"
   }
 }

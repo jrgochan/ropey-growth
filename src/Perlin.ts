@@ -10,15 +10,18 @@ export class Perlin {
     this.p = new Uint8Array(256);
     this.perm = new Uint8Array(512);
 
+    // Fill p with [0..255]
     for (let i = 0; i < 256; i++) {
       this.p[i] = i;
     }
+    // Shuffle p
     for (let i = 0; i < 256; i++) {
       const r = Math.floor(Math.random() * 256);
       const tmp = this.p[i];
       this.p[i] = this.p[r];
       this.p[r] = tmp;
     }
+    // Extend
     for (let i = 0; i < 512; i++) {
       this.perm[i] = this.p[i & 255];
     }
@@ -38,8 +41,8 @@ export class Perlin {
       case 1: return -x + y;
       case 2: return x - y;
       case 3: return -x - y;
+      default: return 0; 
     }
-    return 0;
   }
 
   public noise2D(x: number, y: number): number {
@@ -49,10 +52,10 @@ export class Perlin {
     const xf = x - Math.floor(x);
     const yf = y - Math.floor(y);
 
-    const topRight    = this.perm[this.perm[X + 1] + Y + 1];
-    const topLeft     = this.perm[this.perm[X] + Y + 1];
+    const topRight =    this.perm[this.perm[X + 1] + Y + 1];
+    const topLeft =     this.perm[this.perm[X] + Y + 1];
     const bottomRight = this.perm[this.perm[X + 1] + Y];
-    const bottomLeft  = this.perm[this.perm[X] + Y];
+    const bottomLeft =  this.perm[this.perm[X] + Y];
 
     const u = this.fade(xf);
     const v = this.fade(yf);
