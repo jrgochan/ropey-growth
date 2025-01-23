@@ -53,7 +53,7 @@ export const config = {
     // -----------------------------
     // Canvas & Growth Parameters
     // -----------------------------
-    GROWTH_RADIUS_FACTOR: 0.35,     // Fraction of min(width, height) for growth boundary
+    GROWTH_RADIUS_FACTOR: 0.25,     // Fraction of min(width, height) for growth boundary
     MAIN_BRANCH_COUNT: 10,          // Number of main branches
   
     // -----------------------------
@@ -61,10 +61,10 @@ export const config = {
     // -----------------------------
     STEP_SIZE: 1.5,                 // Base step size for each iteration
     GROWTH_SPEED_MULTIPLIER: 0.5,   // Multiplier to control overall growth speed
-    BASE_LIFE: 3000,                // Base life for main tips
+    BASE_LIFE: 300,                // Base life for main tips
     BRANCH_DECAY: 0.9,              // Fraction of parent's life for branches
     BRANCH_CHANCE: 0.5,             // Probability of branching per step
-    MAX_BRANCH_DEPTH: 500,          // Maximum depth for nested branches
+    MAX_BRANCH_DEPTH: 50,          // Maximum depth for nested branches
     ANGLE_DRIFT_STRENGTH: 0.05,     // Strength of angle drift influenced by Perlin noise
     WIGGLE_STRENGTH: 0.2,           // Strength of wiggle for additional randomness
     PERLIN_SCALE: 0.05,             // Scale for Perlin noise
@@ -132,6 +132,6 @@ export const config = {
     // -----------------------------
     // Miscellaneous Parameters
     // -----------------------------
-    ANASTOMOSIS_RADIUS: 0.75,       // Radius within which tips fuse
+    ANASTOMOSIS_RADIUS: 0.25,       // Radius within which tips fuse
   };
   
