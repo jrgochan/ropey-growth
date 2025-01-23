@@ -11,8 +11,8 @@
 // Canvas & Growth Parameters
 // -----------------------------
 
-export const GROWTH_RADIUS_FACTOR = 0.90;     // Fraction of min(width, height) for growth boundary
-export const MAIN_BRANCH_COUNT = 50;          // Number of main branches (reduced from 100 to balance density)
+export const GROWTH_RADIUS_FACTOR = 0.10;     // Fraction of min(width, height) for growth boundary
+export const MAIN_BRANCH_COUNT = 500;          // Number of main branches (reduced from 100 to balance density)
 
 // -----------------------------
 // Growth Mechanics
@@ -71,7 +71,7 @@ export const WIDER_SECONDARY_ANGLE = Math.PI / 6; // Additional angle spread for
 // Rendering Parameters
 // -----------------------------
 
-export const BACKGROUND_ALPHA = 0.00;             // Transparency for nutrient environment rendering (changed from 0 to 0.05)
+export const BACKGROUND_ALPHA = 0.0;             // Transparency for nutrient environment rendering (changed from 0 to 0.05)
 export const FADE_START_FACTOR = 0.8;             // Radius factor to start fading
 export const FADE_END_FACTOR = 1.0;               // Radius factor to end fading
 export const SHADOW_BLUR = 10;                    // Blur level for shadows
