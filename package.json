@@ -1,7 +1,7 @@
 {
-  "name": "ropey-growth",
-  "version": "4.0.0",
-  "description": "A stable, iterative mycelium simulation in a petri dish without crashing.",
+  "name": "ropey-growth-minimal",
+  "version": "1.0.0",
+  "description": "A minimal mycelium lines example that actually draws filaments from center.",
   "type": "module",
   "scripts": {
     "build": "tsc",

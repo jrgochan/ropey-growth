@@ -1,18 +1,11 @@
 /***************************************************
  * main.ts
  *
- * Entry point. Creates environment, growth manager,
- * and runs the animation.
+ * Entry point for minimal lines example.
  ***************************************************/
 
-import { EnvironmentGrid } from "./environment.js";
 import { GrowthManager } from "./growth.js";
 import { Perlin } from "./perlin.js";
-
-import {
-  GROWTH_RADIUS_FACTOR,
-  MAIN_BRANCH_COUNT
-} from "./constants.js";
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d")!;
@@ -30,26 +23,16 @@ window.addEventListener("resize", () => {
   height = window.innerHeight;
   canvas.width = width;
   canvas.height = height;
-  setup(); // re-init on resize
+  setup();
 });
 
-let env: EnvironmentGrid;
 let growth: GrowthManager;
 let perlin: Perlin;
 
 function setup() {
-  // environment
-  env = new EnvironmentGrid(width, height);
-
-  // perlin
   perlin = new Perlin();
-
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const r = Math.min(width, height) * GROWTH_RADIUS_FACTOR;
-
-  growth = new GrowthManager(ctx, width, height, centerX, centerY, r, env, perlin);
-  growth.init(MAIN_BRANCH_COUNT);
+  growth = new GrowthManager(ctx, width, height, width/2, height/2, perlin);
+  growth.init();
 }
 
 function animate() {
