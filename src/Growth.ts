@@ -204,11 +204,16 @@ export class GrowthManager {
         for (let i = 0; i < SECONDARY_FAN_COUNT; i++) {
           // Introduce more randomization in angle offset
           const angleOffset = (Math.random() - 0.5) * WIDER_SECONDARY_ANGLE;
-          const newAngle = tip.angle + angleOffset + (Math.random() - 0.5) * 0.2; // Additional small random adjustment
+          const newAngle = tip.angle + angleOffset + (Math.random() - 0.5) * 0.1; // Reduced additional random adjustment for smoother branches
+
+          // Calculate spawn position slightly ahead to prevent immediate fusion
+          const spawnDistance = STEP_SIZE * GROWTH_SPEED_MULTIPLIER; // e.g., 2 * 0.5 = 1 unit ahead
+          const spawnX = tip.x + Math.cos(newAngle) * spawnDistance;
+          const spawnY = tip.y + Math.sin(newAngle) * spawnDistance;
 
           const newTip: HyphaTip = {
-            x: tip.x,
-            y: tip.y,
+            x: spawnX,
+            y: spawnY,
             angle: newAngle,
             life: Math.max(tip.life * BRANCH_DECAY, BASE_LIFE * 0.5), // Ensure a minimum lifespan
             depth: tip.depth + 1,
@@ -245,7 +250,7 @@ export class GrowthManager {
       this.tips = this.tips.filter(t => t.life > 0);
     }
 
-    // Optional: Tip Culling to Control Performance
+    // Tip Culling to Control Performance
     const MAX_ACTIVE_TIPS = 1000; // Adjust as needed
     if (this.tips.length > MAX_ACTIVE_TIPS) {
       console.log(`Maximum active tips reached (${MAX_ACTIVE_TIPS}). Removing oldest tips.`);

@@ -18,14 +18,14 @@ export const MAIN_BRANCH_COUNT = 50;          // Number of main branches (reduce
 // Growth Mechanics
 // -----------------------------
 
-export const STEP_SIZE = 1;                    // Base step size for each iteration (reduced from 10 for smoother growth)
-export const GROWTH_SPEED_MULTIPLIER = 0.5;    // Multiplier to control overall growth speed (increased from 0.01)
+export const STEP_SIZE = 2;                    // Base step size for each iteration (increased for more visible growth)
+export const GROWTH_SPEED_MULTIPLIER = 0.5;    // Multiplier to control overall growth speed
 export const BASE_LIFE = 3000;                 // Base life for main tips
 export const BRANCH_DECAY = 0.9;               // Fraction of parent's life for branches
 export const BRANCH_CHANCE = 0.05;             // Probability of branching per step (reduced from 0.9 to control branching rate)
 export const MAX_BRANCH_DEPTH = 50;            // Maximum depth for nested branches (reduced from 1000 to limit recursion)
-export const ANGLE_DRIFT_STRENGTH = 0.2;        // Strength of angle drift influenced by Perlin noise (maintained)
-export const WIGGLE_STRENGTH = 0.5;             // Strength of wiggle for additional randomness (maintained)
+export const ANGLE_DRIFT_STRENGTH = 0.05;       // Strength of angle drift influenced by Perlin noise (reduced for smoother drift)
+export const WIGGLE_STRENGTH = 0.2;             // Strength of wiggle for additional randomness (reduced for straighter growth)
 export const PERLIN_SCALE = 0.05;               // Scale for Perlin noise (reduced from 0.5 for smoother drift)
 
 // -----------------------------
@@ -65,7 +65,7 @@ export const RESOURCE_FLOW_RATE = 1.2;           // Fraction of resource that fl
 
 export const TIME_LAPSE_FACTOR = 1;               // Number of simulation steps per animation frame
 export const SECONDARY_FAN_COUNT = 3;             // Number of secondary branches per main tip
-export const WIDER_SECONDARY_ANGLE = Math.PI / 4; // Additional angle spread for secondary branches
+export const WIDER_SECONDARY_ANGLE = Math.PI / 6; // Additional angle spread for secondary branches (narrowed for controlled spread)
 
 // -----------------------------
 // Rendering Parameters
@@ -91,13 +91,13 @@ export const SECONDARY_ALPHA = 0.7;                // Opacity of secondary hypha
 // -----------------------------
 
 export const BASE_HUE = 0;                         // Base hue for hyphal lines (0 = red, but with saturation 0 for white)
-export const BASE_LIGHTNESS = 80;                  // Base lightness for hyphal lines (80% for main branches)
+export const BASE_LIGHTNESS = 100;                  // Base lightness for hyphal lines (80% for main branches)
 
 // New Constant for Lightness Increment
-export const LIGHTNESS_STEP = 5;                   // Lightness increase per branching depth
+export const LIGHTNESS_STEP = 3;                   // Lightness increase per branching depth (reduced from 5 to prevent over-lightening)
 
 // -----------------------------
 // Miscellaneous Parameters
 // -----------------------------
 
-export const ANASTOMOSIS_RADIUS = 10;             // Radius within which tips fuse
+export const ANASTOMOSIS_RADIUS = 0.001;              // Radius within which tips fuse (reduced from 10 to allow secondary branching)
