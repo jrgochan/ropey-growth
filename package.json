@@ -1,7 +1,7 @@
 {
   "name": "ropey-growth",
   "version": "2.0.0",
-  "description": "Iterative Mycelial Growth Simulation in TypeScript",
+  "description": "Iterative rhizomorphic mycelium growth in TypeScript",
   "type": "module",
   "scripts": {
     "build": "tsc",

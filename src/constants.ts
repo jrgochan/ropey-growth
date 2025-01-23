@@ -1,36 +1,55 @@
 /**
  * constants.ts
  *
- * Tunable parameters for iterative fungal (mycelial) growth.
+ * Tunable parameters for rhizomorphic mycelium growth.
  */
 
-// Canvas + growth area
-export const GROWTH_RADIUS_FACTOR = 0.45; // fraction of min(windowWidth, windowHeight)
+// The circle radius is a fraction of the smaller window dimension
+export const GROWTH_RADIUS_FACTOR = 0.45;
 
-// Density + grid
+// We store how many "main trunk" tips start at the center.
+export const MAIN_TRUNK_COUNT = 12;
+
+// Each main trunk can live long enough to reach the circle edge
+export const MAIN_TRUNK_LIFE = 700;
+
+// We'll allow secondary branching up to some depth
+export const MAX_SECONDARY_DEPTH = 4;
+
+// Probability that each step of a main trunk spawns a secondary
+export const SECONDARY_BRANCH_CHANCE = 0.95;
+
+// Step size for each iteration
+export const STEP_SIZE = 2.0;
+
+// Perlin noise parameters
+export const PERLIN_SCALE = 0.01;
+export const ANGLE_DRIFT_STRENGTH = 0.12;
+export const WIGGLE_STRENGTH = 2.0;
+
+// Density grid
 export const CELL_SIZE = 15;
-export const MAX_DENSITY = 120; // how many lines can pass a cell before it stops growth
+export const MAX_DENSITY = 9999; // let filaments overlap a lot
 
-// Hyphal growth parameters
-export const STEP_SIZE = 2.0;     // how far each tip moves per iteration
-export const BRANCH_CHANCE = 0.01; // chance each tip spawns a new branch each frame
-export const BRANCH_DECAY = 0.8;   // fraction of parent's remaining life for new branch
-export const MAX_LIFE = 800;       // max steps a tip can live
+// No partial fade each frame => we keep all lines
+export const BACKGROUND_ALPHA = 0.0; 
 
-// Perlin noise
-export const PERLIN_SCALE = 0.005; 
-export const ANGLE_DRIFT_STRENGTH = 0.1; 
-export const WIGGLE_STRENGTH = 1.2; 
+// Fade factor near the boundary of the dish
+export const FADE_START_FACTOR = 0.9;
+export const FADE_END_FACTOR = 1.0;
 
-// Fading near circle edge
-export const EDGE_FADE_START = 0.9; // e.g. 0.9 => fade near 90% radius
+// Main trunk appearance (strong, bright)
+export const MAIN_LINE_WIDTH = 2.0;
+export const MAIN_ALPHA = 0.85;
 
-// Appearance
-export const BACKGROUND_ALPHA = 0.04;  // how quickly old lines fade each frame (0 to 1)
-export const SHADOW_BLUR = 6;
-export const SHADOW_COLOR = "rgba(255,255,255,0.5)";
+// Secondary growth appearance (thinner, fainter)
+export const SECONDARY_LINE_WIDTH = 1.0;
+export const SECONDARY_ALPHA = 0.5;
 
-// If you want subtle color variation
+// Base color in HSL
 export const BASE_HUE = 50;
 export const BASE_LIGHTNESS = 95;
-export const BASE_ALPHA = 0.8;  // line alpha
+
+// Shadow / glow
+export const SHADOW_BLUR = 6;
+export const SHADOW_COLOR = "rgba(255,255,255,0.5)";

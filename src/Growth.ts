@@ -1,12 +1,11 @@
 /***************************************************
  * Growth.ts
  *
- * Contains the iterative growth logic:
- * - HyphaTip data structure
- * - GrowthManager class to handle:
- *   1) Tips array
- *   2) Density map
- *   3) updateAndDraw logic
+ * Iterative rhizomorphic mycelium approach:
+ * - Start from "main trunk" tips in center
+ * - Grow out step by step
+ * - Possibly spawn secondary branches
+ * - Stop if out of circle or too dense
  ***************************************************/
 
 import { Perlin } from "./Perlin.js";
@@ -14,26 +13,34 @@ import {
   CELL_SIZE,
   MAX_DENSITY,
   STEP_SIZE,
-  BRANCH_CHANCE,
-  BRANCH_DECAY,
-  MAX_LIFE,
   PERLIN_SCALE,
   ANGLE_DRIFT_STRENGTH,
   WIGGLE_STRENGTH,
-  EDGE_FADE_START,
-  BACKGROUND_ALPHA,
+  FADE_START_FACTOR,
+  FADE_END_FACTOR,
+  MAIN_LINE_WIDTH,
+  MAIN_ALPHA,
+  SECONDARY_LINE_WIDTH,
+  SECONDARY_ALPHA,
   SHADOW_BLUR,
   SHADOW_COLOR,
   BASE_HUE,
   BASE_LIGHTNESS,
-  BASE_ALPHA
+  BACKGROUND_ALPHA,
+  SECONDARY_BRANCH_CHANCE,
+  MAX_SECONDARY_DEPTH
 } from "./constants.js";
+
+/** We mark each tip as 'main' or 'secondary', plus track depth of branching. */
+export type GrowthType = "main" | "secondary";
 
 export interface HyphaTip {
   x: number;
   y: number;
   angle: number;
-  life: number; // how many steps remain
+  life: number;
+  growthType: GrowthType;
+  depth: number; // how many times we've branched
 }
 
 export class GrowthManager {
@@ -64,35 +71,24 @@ export class GrowthManager {
     this.perlin = perlin;
   }
 
-  /**
-   * Clear all existing data and set up initial tips.
-   */
-  public init(initialTipCount = 5) {
+  public init(initialTips: HyphaTip[]) {
     this.densityMap.clear();
     this.tips = [];
 
-    // Fill background
+    // Fill background once
     this.ctx.fillStyle = "black";
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Spawn a few tips near the center, spaced around
-    for (let i = 0; i < initialTipCount; i++) {
-      const angle = (Math.PI * 2 * i) / initialTipCount;
-      this.tips.push({
-        x: this.centerX,
-        y: this.centerY,
-        angle,
-        life: MAX_LIFE
-      });
+    // Store initial tips (likely main trunks in center)
+    for (const t of initialTips) {
+      this.tips.push(t);
     }
   }
 
-  /**
-   * Called each frame to update & draw the hypha network.
-   * Typically invoked via requestAnimationFrame in main.ts.
-   */
   public updateAndDraw() {
-    // Slightly fade previous frame => ghost effect
+    // If you want a persistent image (no fade):
+    // just do nothing here, so lines remain.
+    // For a subtle "ghost" effect, you could do:
     this.ctx.fillStyle = `rgba(0,0,0,${BACKGROUND_ALPHA})`;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
@@ -105,26 +101,29 @@ export class GrowthManager {
       const tip = this.tips[i];
       if (tip.life <= 0) continue;
 
+      // Save old position
       const oldX = tip.x;
       const oldY = tip.y;
 
-      // Noise-based angle tweak
+      // Perlin-based angle drift
       const noiseVal = this.perlin.noise2D(tip.x * PERLIN_SCALE, tip.y * PERLIN_SCALE);
       const angleDrift = noiseVal * ANGLE_DRIFT_STRENGTH;
       tip.angle += angleDrift;
 
-      // Perpendicular wiggle
+      // Perlin-based perpendicular wiggle
       const noiseVal2 = this.perlin.noise2D(
-        (tip.x + 1234) * PERLIN_SCALE,
-        (tip.y + 1234) * PERLIN_SCALE
+        (tip.x + 1000) * PERLIN_SCALE,
+        (tip.y + 1000) * PERLIN_SCALE
       );
       const wiggle = noiseVal2 * WIGGLE_STRENGTH;
 
       // Move forward
-      tip.x += Math.cos(tip.angle) * STEP_SIZE + Math.cos(tip.angle + Math.PI / 2) * wiggle * 0.2;
-      tip.y += Math.sin(tip.angle) * STEP_SIZE + Math.sin(tip.angle + Math.PI / 2) * wiggle * 0.2;
+      tip.x += Math.cos(tip.angle) * STEP_SIZE 
+             + Math.cos(tip.angle + Math.PI / 2) * wiggle * 0.2;
+      tip.y += Math.sin(tip.angle) * STEP_SIZE 
+             + Math.sin(tip.angle + Math.PI / 2) * wiggle * 0.2;
 
-      // Decrease life
+      // Decrement life
       tip.life--;
 
       // Check boundary
@@ -135,68 +134,84 @@ export class GrowthManager {
       }
 
       // Check density
-      if (this.getDensity(tip.x, tip.y) >= MAX_DENSITY) {
+      if (this.getDensity(tip.x, tip.y) > MAX_DENSITY) {
         tip.life = 0;
         continue;
       }
-      // Increase density
       this.increaseDensity(tip.x, tip.y);
 
-      // Draw the new segment
+      // Fade factor near the boundary
       let fadeFactor = 1;
-      const edgeDist = this.growthRadius * EDGE_FADE_START;
-      if (dist > edgeDist) {
-        fadeFactor = 1 - (dist - edgeDist) / (this.growthRadius - edgeDist);
+      const fadeStart = this.growthRadius * FADE_START_FACTOR;
+      const fadeEnd = this.growthRadius * FADE_END_FACTOR;
+      if (dist > fadeStart) {
+        fadeFactor = 1 - (dist - fadeStart) / (fadeEnd - fadeStart);
         if (fadeFactor < 0) fadeFactor = 0;
       }
 
-      // Subtle color variation each step
+      // Determine color / alpha based on growthType
+      let lineWidth = 1;
+      let alpha = 0.5;
+
+      if (tip.growthType === "main") {
+        lineWidth = MAIN_LINE_WIDTH;
+        alpha = MAIN_ALPHA;
+      } else {
+        lineWidth = SECONDARY_LINE_WIDTH;
+        alpha = SECONDARY_ALPHA;
+      }
+
+      // Combine with fadeFactor
+      alpha *= fadeFactor;
+
+      // Slight random hue shift
       const hueShift = Math.floor(Math.random() * 30) - 15;
       const hue = BASE_HUE + hueShift;
-      const alpha = BASE_ALPHA * fadeFactor;
 
       this.ctx.strokeStyle = `hsla(${hue}, 20%, ${BASE_LIGHTNESS}%, ${alpha})`;
-      this.ctx.lineWidth = 1.2;
+      this.ctx.lineWidth = lineWidth;
+
+      // Draw segment
       this.ctx.beginPath();
       this.ctx.moveTo(oldX, oldY);
       this.ctx.lineTo(tip.x, tip.y);
       this.ctx.stroke();
 
-      // Branch?
-      if (Math.random() < BRANCH_CHANCE) {
-        const angleOffset = (Math.random() - 0.5) * 1.5;
-        newTips.push({
-          x: tip.x,
-          y: tip.y,
-          angle: tip.angle + angleOffset,
-          life: tip.life * BRANCH_DECAY
-        });
+      // Possibly spawn secondary
+      if (tip.growthType === "main" && tip.depth < MAX_SECONDARY_DEPTH) {
+        if (Math.random() < SECONDARY_BRANCH_CHANCE) {
+          newTips.push({
+            x: tip.x,
+            y: tip.y,
+            angle: tip.angle + (Math.random() - 0.5) * Math.PI / 2,
+            life: tip.life * 0.8, // shorter life for secondaries
+            growthType: "secondary",
+            depth: tip.depth + 1
+          });
+        }
       }
     }
 
     // Add new tips
     this.tips.push(...newTips);
 
-    // Remove dead tips
+    // Prune dead tips
     this.tips = this.tips.filter(t => t.life > 0);
   }
 
-  /** Utility to increment local density. */
-  private increaseDensity(x: number, y: number) {
-    const key = this.getDensityKey(x, y);
-    this.densityMap.set(key, (this.densityMap.get(key) || 0) + 1);
-  }
-
-  /** Utility to retrieve local density. */
-  private getDensity(x: number, y: number): number {
-    const key = this.getDensityKey(x, y);
-    return this.densityMap.get(key) || 0;
-  }
-
-  /** Convert x,y to a grid key. */
   private getDensityKey(x: number, y: number): string {
     const col = Math.floor(x / CELL_SIZE);
     const row = Math.floor(y / CELL_SIZE);
     return `${col},${row}`;
+  }
+
+  private increaseDensity(x: number, y: number): void {
+    const key = this.getDensityKey(x, y);
+    this.densityMap.set(key, (this.densityMap.get(key) || 0) + 1);
+  }
+
+  private getDensity(x: number, y: number): number {
+    const key = this.getDensityKey(x, y);
+    return this.densityMap.get(key) || 0;
   }
 }
