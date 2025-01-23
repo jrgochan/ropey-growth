@@ -1,12 +1,15 @@
-/***************************************************
+// src/environmentGPU.ts
+
+/**
  * environmentGPU.ts
  *
  * Manages the nutrient environment for the mycelial simulation.
  * - Initializes and updates the nutrient grid.
  * - Simulates nutrient diffusion.
  * - Handles resource consumption by hyphal tips.
+ * - Creates nutrient pockets to simulate resource-rich areas.
  * - Renders the nutrient environment onto a canvas.
- ***************************************************/
+ */
 
 import { GPU } from 'gpu.js';
 import {
@@ -15,7 +18,12 @@ import {
   NUTRIENT_DIFFUSION,
   BACKGROUND_ALPHA,
   FADE_START_FACTOR,
-  FADE_END_FACTOR
+  FADE_END_FACTOR,
+  NUTRIENT_POCKET_RADIUS,
+  NUTRIENT_POCKET_AMOUNT,
+  NUTRIENT_POCKET_DECAY_RATE,
+  REPLENISHMENT_INTERVAL,
+  REPLENISHMENT_AMOUNT
 } from './constants.js';
 
 export class EnvironmentGPU {
@@ -23,10 +31,16 @@ export class EnvironmentGPU {
   private renderKernel: any;
   private diffusionKernel: any;
   private nutrientGrid: number[][];
-  private cols: number;
-  private rows: number;
+  public cols: number;
+  public rows: number;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+
+  // Nutrient Pockets Tracking
+  private nutrientPockets: { x: number; y: number; radius: number; amount: number }[] = [];
+
+  // Replenishment Timer
+  private lastReplenishmentTime: number = 0;
 
   constructor(width: number, height: number, canvas: HTMLCanvasElement) {
     this.gpu = new GPU();
@@ -66,25 +80,25 @@ export class EnvironmentGPU {
       let sum = 0;
       let count = 0;
 
-      // Left
+      // Left Neighbor
       if (x > 0) {
         sum += grid[y][x - 1];
         count++;
       }
 
-      // Right
+      // Right Neighbor
       if (x < this.constants.cols - 1) {
         sum += grid[y][x + 1];
         count++;
       }
 
-      // Up
+      // Up Neighbor
       if (y > 0) {
         sum += grid[y - 1][x];
         count++;
       }
 
-      // Down
+      // Down Neighbor
       if (y < this.constants.rows - 1) {
         sum += grid[y + 1][x];
         count++;
@@ -113,8 +127,8 @@ export class EnvironmentGPU {
 
       const nutrient = grid[y][x];
 
-      // Map nutrient levels to grayscale colors (higher nutrients = darker)
-      const colorValue = Math.floor((1.0 - nutrient / 100.0) * 255);
+      // Map nutrient levels to dark greens (mimicking natural nutrient-rich soil)
+      const greenValue = Math.floor((nutrient / 100.0) * 255);
 
       // Calculate radial distance from the center
       const dx = x - this.constants.centerX;
@@ -131,7 +145,7 @@ export class EnvironmentGPU {
       if (alpha < 0) alpha = 0;
       if (alpha > 1) alpha = 1;
 
-      this.color(colorValue / 255, colorValue / 255, colorValue / 255, alpha);
+      this.color(0, greenValue / 255, 0, alpha); // Dark green based on nutrient level
     })
     .setOutput([this.cols, this.rows])
     .setGraphical(true) // Outputs to a GPU.js canvas
@@ -146,9 +160,11 @@ export class EnvironmentGPU {
   }
 
   /**
-   * Updates the nutrient grid by performing diffusion.
+   * Updates the nutrient grid by performing diffusion and managing nutrient pockets.
+   * Call this method once per simulation step.
+   * @param currentTime - The current timestamp in milliseconds.
    */
-  public updateEnvironment() {
+  public updateEnvironment(currentTime: number) {
     // Perform diffusion step
     const newGrid = this.diffusionKernel(this.nutrientGrid, NUTRIENT_DIFFUSION);
 
@@ -163,10 +179,20 @@ export class EnvironmentGPU {
     }
 
     this.nutrientGrid = updatedGrid;
+
+    // Handle Nutrient Pockets Decay
+    this.decayNutrientPockets();
+
+    // Handle Nutrient Replenishment
+    if (currentTime - this.lastReplenishmentTime > REPLENISHMENT_INTERVAL) {
+      this.replenishNutrients(REPLENISHMENT_AMOUNT);
+      this.lastReplenishmentTime = currentTime;
+    }
   }
 
   /**
    * Renders the nutrient environment onto its canvas.
+   * Call this method after updating the environment.
    */
   public renderToCanvas() {
     this.renderKernel(this.nutrientGrid);
@@ -210,7 +236,78 @@ export class EnvironmentGPU {
   }
 
   /**
-   * Resets the nutrient grid to base nutrient levels.
+   * Creates a nutrient-rich circular pocket at the specified grid coordinates.
+   * @param x - X-coordinate in grid cells.
+   * @param y - Y-coordinate in grid cells.
+   * @param radius - Radius of the pocket in grid cells.
+   * @param amount - Amount of nutrient to add to each cell within the pocket.
+   */
+  public createNutrientPocket(x: number, y: number, radius: number, amount: number) {
+    for (let j = y - radius; j <= y + radius; j++) {
+      for (let i = x - radius; i <= x + radius; i++) {
+        if (i >= 0 && i < this.cols && j >= 0 && j < this.rows) {
+          const distance = Math.hypot(i - x, j - y);
+          if (distance <= radius) {
+            this.nutrientGrid[j][i] = Math.min(this.nutrientGrid[j][i] + amount, 100); // Clamp to max nutrient level
+            // Track the nutrient pocket for decay
+            this.nutrientPockets.push({ x: i, y: j, radius, amount });
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Decays nutrient pockets over time to simulate natural depletion.
+   */
+  private decayNutrientPockets() {
+    for (let i = this.nutrientPockets.length - 1; i >= 0; i--) {
+      const pocket = this.nutrientPockets[i];
+      // Decay the nutrient amount
+      pocket.amount -= NUTRIENT_POCKET_DECAY_RATE;
+      if (pocket.amount <= 0) {
+        // Remove the pocket from tracking
+        this.nutrientPockets.splice(i, 1);
+        continue;
+      }
+      // Apply decay to the nutrient grid
+      if (this.nutrientGrid[pocket.y][pocket.x] > BASE_NUTRIENT) {
+        this.nutrientGrid[pocket.y][pocket.x] = Math.max(this.nutrientGrid[pocket.y][pocket.x] - NUTRIENT_POCKET_DECAY_RATE, BASE_NUTRIENT);
+      }
+    }
+  }
+
+  /**
+   * Replenishes nutrients uniformly across the grid.
+   * @param amount - Amount of nutrient to add to each cell.
+   */
+  public replenishNutrients(amount: number) {
+    for (let y = 0; y < this.rows; y++) {
+      for (let x = 0; x < this.cols; x++) {
+        this.nutrientGrid[y][x] = Math.min(this.nutrientGrid[y][x] + amount, 100); // Clamp to max nutrient level
+      }
+    }
+  }
+
+  /**
+   * Retrieves nutrient level at a specific (x, y) position.
+   * @param x - X-coordinate in pixels.
+   * @param y - Y-coordinate in pixels.
+   * @returns Nutrient level (0 to 100).
+   */
+  public getNutrientAt(x: number, y: number): number {
+    const gridX = Math.floor(x / ENV_GRID_CELL_SIZE);
+    const gridY = Math.floor(y / ENV_GRID_CELL_SIZE);
+
+    if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
+      return 0;
+    }
+
+    return this.nutrientGrid[gridY][gridX];
+  }
+
+  /**
+   * Resets the nutrient grid to base nutrient levels and clears all nutrient pockets.
    */
   public resetEnvironment() {
     this.nutrientGrid = [];
@@ -221,5 +318,7 @@ export class EnvironmentGPU {
       }
       this.nutrientGrid.push(row);
     }
+    this.nutrientPockets = [];
+    this.lastReplenishmentTime = 0;
   }
 }

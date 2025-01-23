@@ -1,72 +1,103 @@
+// src/constants.ts
+
 /**
  * constants.ts
  *
  * Contains tunable parameters and constants
- * for a more advanced mycelium simulation.
+ * for the mycelial simulation.
  */
 
-// Canvas & Growth
-export const GROWTH_RADIUS_FACTOR = 0.90;     // Fraction of min(width, height) for dish
-export const MAIN_BRANCH_COUNT = 20;          // Reduced from 100 to 20 for testing
+// -----------------------------
+// Canvas & Growth Parameters
+// -----------------------------
 
-// Growth parameters
-export const STEP_SIZE = 0.2;                 // Step size for each iteration before multiplying by the growth factor
-export const GROWTH_SPEED_MULTIPLIER = 1.0;   // Reduced from 1.5 to 1.0 for controlled growth
-export const BASE_LIFE = 3000;                // Base life for main tips
-export const BRANCH_DECAY = 0.9;              // Fraction of parent's life for branches
-export const BRANCH_CHANCE = 0.02;            // Corrected from 9 to 0.02
-export const MAX_BRANCH_DEPTH = 10;           // Maximum depth for nested branches
-export const ANASTOMOSIS_RADIUS = 10;         // Radius within which tips fuse
+export const GROWTH_RADIUS_FACTOR = 0.90;     // Fraction of min(width, height) for growth boundary
+export const MAIN_BRANCH_COUNT = 50;          // Number of main branches (reduced from 100 to balance density)
 
-// Environment Grid
-export const ENV_GRID_CELL_SIZE = 5;          // Size of each grid cell for resource distribution
-export const BASE_NUTRIENT = 100;             // Baseline nutrient level in each cell
-export const BASE_MOISTURE = 50;              // Baseline moisture level
-export const NUTRIENT_DIFFUSION = 0.1;        // Diffusion rate of nutrients
-export const NUTRIENT_CONSUMPTION_RATE = 1.0; // Amount of nutrient consumed by a hypha tip per step
+// -----------------------------
+// Growth Mechanics
+// -----------------------------
 
-// MycelialNetwork / Graph
-export const INITIAL_RESOURCE_PER_TIP = 1000.0; // Increased for longer life
-export const RESOURCE_FLOW_RATE = 1.2;         // Fraction of resource that flows each tick along edges
+export const STEP_SIZE = 1;                    // Base step size for each iteration (reduced from 10 for smoother growth)
+export const GROWTH_SPEED_MULTIPLIER = 0.5;    // Multiplier to control overall growth speed (increased from 0.01)
+export const BASE_LIFE = 3000;                 // Base life for main tips
+export const BRANCH_DECAY = 0.9;               // Fraction of parent's life for branches
+export const BRANCH_CHANCE = 0.05;             // Probability of branching per step (reduced from 0.9 to control branching rate)
+export const MAX_BRANCH_DEPTH = 50;            // Maximum depth for nested branches (reduced from 1000 to limit recursion)
+export const ANGLE_DRIFT_STRENGTH = 0.2;        // Strength of angle drift influenced by Perlin noise (maintained)
+export const WIGGLE_STRENGTH = 0.5;             // Strength of wiggle for additional randomness (maintained)
+export const PERLIN_SCALE = 0.05;               // Scale for Perlin noise (reduced from 0.5 for smoother drift)
 
-/**
- * TIME_LAPSE_FACTOR:
- * Number of simulation sub-steps per animation frame.
- * 1 => real-time
- * 10 => each frame = 10 steps => ~10x faster "time-lapse"
- */
-export const TIME_LAPSE_FACTOR = 1;
+// -----------------------------
+// Environmental Parameters
+// -----------------------------
 
-/**
- * SECONDARY_FAN_COUNT:
- * Number of secondary tips spawned per branch.
- */
-export const SECONDARY_FAN_COUNT = 1; // Reduced for testing
+export const ENV_GRID_CELL_SIZE = 1;           // Size of each grid cell for resource distribution
+export const BASE_NUTRIENT = 100;              // Baseline nutrient level in each cell
+export const NUTRIENT_DIFFUSION = 0.1;         // Diffusion rate of nutrients
+export const NUTRIENT_CONSUMPTION_RATE = 1.0;  // Amount of nutrient consumed by a hypha tip per step
 
-/**
- * WIDER_SECONDARY_ANGLE:
- * Angle spread (in radians) for secondary tips branching out.
- */
-export const WIDER_SECONDARY_ANGLE = Math.PI / 3;
+// -----------------------------
+// Nutrient Pockets Parameters
+// -----------------------------
 
-// Perlin Noise
-export const PERLIN_SCALE = 0.005;
-export const ANGLE_DRIFT_STRENGTH = 0.05;
-export const WIGGLE_STRENGTH = 1.5;
+export const NUTRIENT_POCKET_RADIUS = 3;       // Radius of nutrient pockets in grid cells
+export const NUTRIENT_POCKET_AMOUNT = 100;     // Amount of nutrient added per pocket
+export const NUTRIENT_POCKET_DECAY_RATE = 0.5; // Decay rate of nutrient pockets per step
 
-// Rendering
-export const BACKGROUND_ALPHA = 0.0; // Disable fading for testing
-export const FADE_START_FACTOR = 0.9;      // Radius fraction where fade begins
-export const FADE_END_FACTOR = 1.0;
+// -----------------------------
+// Replenishment Parameters
+// -----------------------------
 
-export const SHADOW_BLUR = 4;              // Reduced blur
-export const SHADOW_COLOR = "rgba(255,255,255,0.3)"; // Reduced opacity
+export const REPLENISHMENT_INTERVAL = 60000;  // Interval in milliseconds to replenish nutrients
+export const REPLENISHMENT_AMOUNT = 5;        // Amount of nutrient added per cell during replenishment
 
-export const MAIN_LINE_WIDTH = 6.0;        // Increased from 5.0
-export const SECONDARY_LINE_WIDTH = 3.0;   // Increased from 2.0
-export const MAIN_ALPHA = 1;
-export const SECONDARY_ALPHA = 0.7;
+// -----------------------------
+// Mycelial Network Parameters
+// -----------------------------
 
-// Colors
-export const BASE_HUE = 180;         // Bright cyan
-export const BASE_LIGHTNESS = 50;    // Adjusted for better visibility
+export const INITIAL_RESOURCE_PER_TIP = 2000.0; // Initial resource for each hypha tip
+export const RESOURCE_FLOW_RATE = 1.2;           // Fraction of resource that flows each tick along edges
+
+// -----------------------------
+// Growth Simulation Parameters
+// -----------------------------
+
+export const TIME_LAPSE_FACTOR = 1;               // Number of simulation steps per animation frame
+export const SECONDARY_FAN_COUNT = 3;             // Number of secondary branches per main tip
+export const WIDER_SECONDARY_ANGLE = Math.PI / 4; // Additional angle spread for secondary branches
+
+// -----------------------------
+// Rendering Parameters
+// -----------------------------
+
+export const BACKGROUND_ALPHA = 0.00;             // Transparency for nutrient environment rendering (changed from 0 to 0.05)
+export const FADE_START_FACTOR = 0.8;             // Radius factor to start fading
+export const FADE_END_FACTOR = 1.0;               // Radius factor to end fading
+export const SHADOW_BLUR = 10;                    // Blur level for shadows
+export const SHADOW_COLOR = "rgba(255,255,255,0.1)"; // Shadow color and opacity (adjusted for better visibility)
+
+// -----------------------------
+// Line Rendering Parameters
+// -----------------------------
+
+export const MAIN_LINE_WIDTH = 2.0;               // Width of main hyphal lines
+export const SECONDARY_LINE_WIDTH = 1.0;          // Width of secondary hyphal lines
+export const MAIN_ALPHA = 1;                       // Opacity of main hyphal lines
+export const SECONDARY_ALPHA = 0.7;                // Opacity of secondary hyphal lines
+
+// -----------------------------
+// Color Parameters
+// -----------------------------
+
+export const BASE_HUE = 0;                         // Base hue for hyphal lines (0 = red, but with saturation 0 for white)
+export const BASE_LIGHTNESS = 80;                  // Base lightness for hyphal lines (80% for main branches)
+
+// New Constant for Lightness Increment
+export const LIGHTNESS_STEP = 5;                   // Lightness increase per branching depth
+
+// -----------------------------
+// Miscellaneous Parameters
+// -----------------------------
+
+export const ANASTOMOSIS_RADIUS = 10;             // Radius within which tips fuse
