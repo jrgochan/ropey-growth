@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "es2015", // Use ES2015 for modern JavaScript features
+    "lib": ["es2015", "dom"], // Include ES2015 and DOM APIs
+    "strict": true, // Enable strict type checking
+    "module": "commonjs", // Use CommonJS modules (or "esnext" if preferred)
+    "esModuleInterop": true // Allow ES module interop for compatibility
+  }
+}
+

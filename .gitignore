@@ -1,0 +1,29 @@
+# 1) Node modules
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# 2) Build outputs
+dist/
+build/
+out/
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# 3) TypeScript cache
+*.tsbuildinfo
+
+# 4) Logs
+*.log
+
+# 5) OS-specific files
+.DS_Store
+Thumbs.db
+
+# 6) IDE/editor directories
+.vscode/
+.idea/
+
