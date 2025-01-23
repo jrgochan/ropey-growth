@@ -1,15 +1,17 @@
 /***************************************************
  * main.ts
  *
- * Entry point for rhizomorphic mycelium growth.
+ * The entry point: sets up the environment grid, 
+ * mycelial network, growth manager, & animation.
  ***************************************************/
 
-import { GrowthManager, HyphaTip } from "./Growth.js";
+import { EnvironmentGrid } from "./environment.js";
+import { MycelialNetwork } from "./mycelialNetwork.js";
+import { GrowthManager } from "./growth.js";
 import { Perlin } from "./Perlin.js";
 import {
   GROWTH_RADIUS_FACTOR,
-  MAIN_TRUNK_COUNT,
-  MAIN_TRUNK_LIFE
+  MAIN_BRANCH_COUNT
 } from "./constants.js";
 
 const canvas = document.createElement("canvas");
@@ -18,54 +20,57 @@ document.body.style.margin = "0";
 document.body.style.overflow = "hidden";
 document.body.appendChild(canvas);
 
-// Resize
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resizeCanvas();
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+
 window.addEventListener("resize", () => {
-  resizeCanvas();
-  setup();
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+  setup();  // re-init on resize
 });
 
-let growthManager: GrowthManager;
+let env: EnvironmentGrid;
+let net: MycelialNetwork;
+let growth: GrowthManager;
+let perlin: Perlin;
 
-// Set up the growth from scratch
 function setup() {
-  const w = canvas.width;
-  const h = canvas.height;
-  const r = Math.min(w, h) * GROWTH_RADIUS_FACTOR;
+  // Create environment
+  env = new EnvironmentGrid(width, height);
 
-  const perlin = new Perlin();
-  growthManager = new GrowthManager(ctx, w, h, r, perlin);
+  // Create MycelialNetwork
+  net = new MycelialNetwork();
 
-  // Create main trunk tips from center
-  // Each trunk has large 'life' so it can reach edge
-  // We space them around in a circle or random angles
-  const centerX = w / 2;
-  const centerY = h / 2;
+  // Create Perlin
+  perlin = new Perlin();
 
-  const mainTips: HyphaTip[] = [];
-  for (let i = 0; i < MAIN_TRUNK_COUNT; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    mainTips.push({
-      x: centerX,
-      y: centerY,
-      angle,
-      life: MAIN_TRUNK_LIFE,
-      growthType: "main",
-      depth: 0
-    });
-  }
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const r = Math.min(width, height) * GROWTH_RADIUS_FACTOR;
 
-  // Initialize
-  growthManager.init(mainTips);
+  // Create GrowthManager
+  growth = new GrowthManager(
+    ctx,
+    width,
+    height,
+    centerX,
+    centerY,
+    r,
+    env,
+    net,
+    perlin
+  );
+
+  // Initialize with main branches at center
+  growth.init(MAIN_BRANCH_COUNT);
 }
 
-// Animation loop
 function animate() {
-  growthManager.updateAndDraw();
+  growth.updateAndDraw();
   requestAnimationFrame(animate);
 }
 

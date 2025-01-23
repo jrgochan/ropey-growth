@@ -1,125 +1,91 @@
-Below is a **comprehensive** `README.md` describing your **iterative rhizomorphic mycelium** project in **excruciating detail**, from the **biology** behind hyphal growth, to the **code structure**, to **usage** instructions. Feel free to add or remove sections as you see fit.
+Below is a **comprehensive** `README.md` describing the **iterative rhizomorphic mycelium** project that incorporates **resource flow**, **anastomosis**, **nutrient consumption**, and **environment gradients**, aiming to be more **biologically informed** than simpler static line approaches.
 
 ---
 
-# Rhizomorphic Mycelium Growth (Iterative Simulation)
+# Advanced Rhizomorphic Mycelium Simulation
 
-A **TypeScript** project that simulates **mycelial filaments** (hyphae) growing radially outward in a *rhizomorphic* (root-like) pattern inside a **petri-dish-like circle**. The code uses an **iterative** step-by-step approach, with **Perlin noise** for smooth wiggles and branching rules to mimic real fungal growth—though simplified compared to true biological complexity.
+This project models **mycelial growth** with a more **biologically informed** approach than standard static line drawings. It includes:
+
+- **Nutrient & Moisture Grid**: Each cell has resource levels that can be consumed.  
+- **Mycelial Network Graph**: Each hyphal tip is a node; edges form hyphal segments, and resource flows along them.  
+- **Anastomosis (Fusion)**: Tips that approach existing nodes merge networks instead of overlapping.  
+- **Resource-Based Growth**: Tips require nutrient to continue living; if starved, they die off.  
+- **Perlin Noise** for meandering, root-like filaments, creating a visually rhizomorphic pattern.
+
+---
 
 ## Table of Contents
 
-1. [Overview](#overview)  
-2. [Biological Background: How Real Mycelium Grows](#biological-background-how-real-mycelium-grows)  
-   - [Mycelial Networks in Nature](#mycelial-networks-in-nature)  
-   - [Hyphal Tip Growth](#hyphal-tip-growth)  
-   - [Branching and Anastomosis](#branching-and-anastomosis)  
-   - [Rhizomorphic vs. Cottony Growth](#rhizomorphic-vs-cottony-growth)
-3. [Simulation Approach](#simulation-approach)  
-   - [Main Trunks vs. Secondary Branches](#main-trunks-vs-secondary-branches)  
-   - [Iterative Tip-Based Growth](#iterative-tip-based-growth)  
-   - [Perlin Noise for Organic Curvature](#perlin-noise-for-organic-curvature)  
-   - [Density Limiting (to Prevent Overcrowding)](#density-limiting-to-prevent-overcrowding)  
-   - [Radial Fade & Visual Styling](#radial-fade--visual-styling)
-4. [Project Structure](#project-structure)  
-   - [Files & Folders](#files--folders)  
-   - [Key Scripts](#key-scripts)
-5. [Installation & Usage](#installation--usage)  
-   - [1. Install Node & Dependencies](#1-install-node--dependencies)  
-   - [2. Development Mode](#2-development-mode)  
-   - [3. Build for Production](#3-build-for-production)  
-6. [Parameters & Customization](#parameters--customization)  
-   - [Filling the Dish More Thoroughly](#filling-the-dish-more-thoroughly)  
-   - [Adjusting Visual Styles](#adjusting-visual-styles)  
-   - [Performance Considerations](#performance-considerations)  
-7. [Limitations & Future Extensions](#limitations--future-extensions)  
-8. [License](#license)
+1. [Biological Background](#biological-background)  
+2. [How This Simulation Works](#how-this-simulation-works)  
+3. [Project Structure](#project-structure)  
+4. [Installation & Running](#installation--running)  
+5. [Key Tunable Parameters](#key-tunable-parameters)  
+6. [Future Extensions](#future-extensions)
 
 ---
 
-## Overview
+## Biological Background
 
-This project simulates **mycelium**—the vegetative part of a fungus—growing radially within a **circular boundary** (like a petri dish). It uses:
+### Fungal Mycelium
+A **mycelium** is a network of **hyphae**—microscopic filaments growing from spores. Real mycelia:
 
-- **HTML Canvas** for rendering filaments.  
-- **TypeScript** for safer, more organized code.  
-- **Perlin Noise** to add wavy, organic motion to each hyphal tip.  
-- **Iteration** via `requestAnimationFrame`: lines expand step-by-step, just like real hyphae grow outward over time.
+- Extend outward searching for nutrients.  
+- Fuse branches (anastomosis) to unify the network.  
+- Transport resources to support active tips.  
 
-**Rhizomorphic** mycelium typically appears **root-like**, with **thick, ropey main “trunks”** and **thinner side filaments** branching off to fill the substrate. This is particularly seen in species like **Psilocybe cubensis** or **Oyster mushrooms** when conditions favor strong, ropey growth.
+### Nutrient & Moisture
+Fungi rely on **external** absorption:
+- Secrete enzymes, **digest** surroundings, **absorb** products.  
+- Need adequate **moisture** and **nutrients**.  
+- Grow vigorously in resource-rich spots; stall or die in depleted areas.
 
----
-
-## Biological Background: How Real Mycelium Grows
-
-### Mycelial Networks in Nature
-Fungi generally exist as **networks** of microscopic filamentous cells called **hyphae**. A collection of hyphae is called a **mycelium**. Mycelia:
-
-- Extend outward to explore and digest nutrients.  
-- Continuously branch, fusing and forming complex webs.
-
-### Hyphal Tip Growth
-A **hypha** primarily extends at its **tip**, which:
-
-1. **Accumulates vesicles** (tiny compartments of building material).  
-2. **Deposits** new cell wall at the apex, pushing outward.  
-3. Can sense nutrients or environmental cues to steer growth direction.
-
-### Branching and Anastomosis
-- **Branching** occurs when a hypha spawns a new tip that grows off laterally.  
-- **Anastomosis** is when two hyphae meet and fuse, sharing cytoplasm. This helps unify the network.
-
-### Rhizomorphic vs. Cottony Growth
-- **Rhizomorphic** growth is a term used in mycology to describe thick, rope-like strands, often more aggressive.  
-- **Cottony** or “fluffy” mycelium is thinner, less ropey, and often less organized.  
-- Rhizomorphs can transport water and nutrients more efficiently, forming visible cords or “mycelial highways.”
+### Rhizomorphic Growth
+**Rhizomorphic** mycelium forms *thick, ropey cords* sometimes spanning large distances.  
+- More efficient transport, reminiscent of plant roots.  
+- Often arises under conditions favoring fast colonization or when resources are patchy.
 
 ---
 
-## Simulation Approach
+## How This Simulation Works
 
-Because real fungal growth is **extremely** complex (involving chemistry, branching rules, anastomosis, resource flow, etc.), we use a **simplified** model:
+1. **Environment Grid**  
+   - A 2D array of **cells**, each with `nutrient` and `moisture`.  
+   - Minimal “diffusion” or replenishment each frame (very simplified).  
+   - Hypha tips **consume** local nutrient at a small rate.
 
-### Main Trunks vs. Secondary Branches
-- We spawn **main trunk tips** from the dish center. They have:
-  - **Higher opacity** (brighter, thicker lines).
-  - **Longer lifespan**, ensuring they reach or approach the circular boundary.
-- Whenever a main trunk **grows** (each frame), there’s a chance to spawn **secondary** tips:
-  - Thinner, fainter lines.
-  - Less overall life, so they fill the gaps but do not overshadow the main structures.
+2. **Mycelial Network (Graph)**  
+   - Each hyphal node has `(x,y)`, a resource store, and links to neighbors.  
+   - **Edges** represent actual hypha segments.  
+   - **Resource Flow** along edges tries to equalize node resources.  
+   - If a node is starved (resource too low), growth from it halts.
 
-### Iterative Tip-Based Growth
-- Each **hypha tip** has `(x, y, angle, life)`:
-  - **`(x, y)`**: current position.
-  - **`angle`**: current direction in radians.
-  - **`life`**: how many steps remain before this tip “dies” or stops.
-- On each animation frame:
-  1. **Move** the tip forward a small distance (`STEP_SIZE`).  
-  2. **Optionally branch** (only if it’s a main trunk within certain depth).  
-  3. **Stop** if the tip leaves the dish or the area is overcrowded.  
-  4. **Draw** a line segment from the old position to the new.
+3. **GrowthManager**  
+   - Maintains an array of **active tips**.  
+   - Each tip references a node ID in the MycelialNetwork, plus an **angle**, `life`, and `depth`.  
+   - On each frame:
+     1. **Flow resources** in the network.  
+     2. **Update environment** (diffusion).  
+     3. **Move** each tip a step.  
+        - If it’s near an existing node, **fuse** (anastomosis).  
+        - Else create a new node.  
+        - Connect them with an edge.  
+     4. **Consume** environment nutrient → add to node resource.  
+     5. **Draw** a line segment.  
+     6. Potentially **spawn** a new branch (secondary).
 
-### Perlin Noise for Organic Curvature
-Rather than moving in a straight line or purely random jitter, each tip’s angle is **perturbed** by **Perlin noise**:
+4. **Anastomosis**  
+   - Before creating a new node, each tip checks if `(x, y)` is within a certain radius of an existing node.  
+   - If yes, it merges (fuses) there, unifying the network.
 
-1. A noise value at `(x * PERLIN_SCALE, y * PERLIN_SCALE)` modifies the current angle slightly.  
-2. Another noise value adds a **perpendicular “wiggle”** to the motion.  
-3. This results in a **smooth, meandering** path instead of jagged randomness.
-
-### Density Limiting (to Prevent Overcrowding)
-- A **densityMap** records how many lines have passed through each small cell in the canvas.  
-- If a tip enters a cell at or above `MAX_DENSITY`, it stops (dies).  
-- Real hyphae might instead anastomose or fan out, but we keep it simpler by halting tips in overused areas.
-
-### Radial Fade & Visual Styling
-- Lines approaching the dish edge **fade** in alpha.  
-- A **radial gradient** can darken the edges, so filaments appear to vanish into darkness.  
-- **Shadow/Glow**: each line can have a slight **shadow blur** to create a “glowing” effect.
+5. **Rendering**  
+   - **Main** vs. **Secondary** lines have different thickness & opacity.  
+   - Slight color variation per segment for an organic look.  
+   - Fade near the outer radius to mimic a petri-dish boundary.
 
 ---
 
 ## Project Structure
-
-Your directory:
 
 ```
 ropey-growth/
@@ -128,140 +94,65 @@ ropey-growth/
 ├── index.html
 ├── .gitignore
 └── src
-    ├── constants.ts
-    ├── Perlin.ts
-    ├── Growth.ts
-    └── main.ts
+    ├── constants.ts         // All adjustable parameters
+    ├── Perlin.ts            // Perlin noise class
+    ├── environment.ts       // 2D grid of resource
+    ├── mycelialNetwork.ts   // Graph structure of hypha nodes
+    ├── growth.ts            // Iterative logic: anastomosis, resource consumption
+    └── main.ts              // Entry point: sets up, runs animation
 ```
 
-**File Descriptions**:
-
-1. **`package.json`**  
-   - Lists dev dependencies (`typescript`, `lite-server`, `concurrently`) and scripts (`build`, `dev`, `start`).  
-   - `"type": "module"` ensures Node uses ES modules.
-
-2. **`tsconfig.json`**  
-   - Tells TypeScript to look for `.ts` in `src/`, output `.js` to `dist/`, and compile using ES2020 features.
-
-3. **`index.html`**  
-   - A minimal HTML page referencing `dist/main.js`.  
-   - `<canvas>` is created dynamically in code, so no `<canvas>` tag is needed here.
-
-4. **`.gitignore`**  
-   - Ignores `node_modules`, build artifacts (`dist`), and OS/editor temp files.
-
-5. **`src/constants.ts`**  
-   - Stores all **tunable parameters**: dish radius factor, stepping distance, line widths, colors, etc.  
-   - Easier to tweak fill coverage, brightness, or density constraints in one place.
-
-6. **`src/Perlin.ts`**  
-   - The **Perlin noise** class, providing `noise2D(x, y)` → smooth, coherent noise in `[ -1 .. +1 ]`.
-
-7. **`src/Growth.ts`**  
-   - Houses the **GrowthManager** class, which:
-     - Maintains the array of **hypha tips**.  
-     - Manages the **densityMap** for collisions.  
-     - Provides `updateAndDraw()` for each animation frame.  
-     - Spawns main trunks vs. secondary branches with different thickness and alpha.
-
-8. **`src/main.ts`**  
-   - The **entry point**: sets up the canvas, re-sizes on window change, and calls `GrowthManager` to start/stop.  
-   - Spawns an initial set of **main trunk** tips at the center, each angled randomly.  
-   - Schedules an animation loop with `requestAnimationFrame`.
+- **`environment.ts`**: Each cell has `nutrient`, updates slightly each tick; tips call `consumeResource()`.  
+- **`mycelialNetwork.ts`**: Nodes + edges, plus `flowResources()` to share node resource.  
+- **`growth.ts`**: The “brains” of iteration, bridging environment + network. Manages “tips,” merges them into the graph.  
+- **`main.ts`**: Creates the environment, network, growth manager, runs animation with `requestAnimationFrame`.
 
 ---
 
-## Key Scripts
+## Installation & Running
 
-In `package.json`, we typically have:
-
-- **`"build"`**: Runs the TypeScript compiler one time.
-- **`"dev"`**: Runs both `tsc -w` (watch mode) and `lite-server`, auto-reloading the page on changes.
-- **`"start"`**: Simply runs `lite-server`, serving `index.html` and `dist/` if you’ve already built.
-
----
-
-## Installation & Usage
-
-### 1. Install Node & Dependencies
-
-- [Install Node.js](https://nodejs.org/en/) if you haven’t already (v14+ recommended).  
-- Navigate to your project folder and run:
-
-```bash
-npm install
-```
-
-This installs TypeScript, lite-server, concurrently, etc.
-
-### 2. Development Mode
-
-```bash
-npm run dev
-```
-- **`tsc -w`** watches `.ts` files in `src/`, automatically recompiling on change.  
-- **`lite-server`** launches a local dev server (usually at http://localhost:3000).  
-- **Hot Reload**: Every time you edit a `.ts` file, the site reloads.
-
-### 3. Build for Production
-
-```bash
-npm run build
-```
-- Generates compiled `.js` in `dist/`.  
-- You can then serve `index.html` + `dist/main.js` from any static server (e.g., Netlify, GitHub Pages, etc.).
+1. **Clone or Download** the project folder.
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Development Mode**:
+   ```bash
+   npm run dev
+   ```
+   - This runs `tsc -w` (watch mode) + `lite-server` for live reloading on http://localhost:3000.
+4. **Build Only**:
+   ```bash
+   npm run build
+   ```
+   - Outputs compiled JavaScript to `dist/`.
 
 ---
 
-## Parameters & Customization
+## Key Tunable Parameters
 
-Inside **`constants.ts`**, you can tune:
+Inside [`constants.ts`](./src/constants.ts), you’ll find variables controlling:
 
-- **`MAIN_TRUNK_COUNT`**: How many thick spokes emanate from the center.  
-- **`MAIN_TRUNK_LIFE`**: Lifespan of main trunks (longer => easily reach dish edge).  
-- **`MAX_SECONDARY_DEPTH`**: How many times secondaries can further branch.  
-- **`SECONDARY_BRANCH_CHANCE`**: Probability each trunk step spawns a secondary.  
-- **`PERLIN_SCALE`**, **`ANGLE_DRIFT_STRENGTH`**, **`WIGGLE_STRENGTH`**: Control how wiggly or curved the lines get.  
-- **`MAIN_LINE_WIDTH`** vs. **`SECONDARY_LINE_WIDTH`**: Thicker vs. thinner filaments.  
-- **`MAIN_ALPHA`** vs. **`SECONDARY_ALPHA`**: More opaque vs. fainter branches.  
-- **`BASE_HUE`**, **`BASE_LIGHTNESS`**: Shift the color from whitish to another hue.  
-- **`BACKDROP_ALPHA`**: If you want an afterimage effect (fade older lines), set a small alpha. If you want lines to remain crisp permanently, set it to `0`.
+- **Dish Size**: `GROWTH_RADIUS_FACTOR` sets the circular boundary.  
+- **Main / Secondary**: `MAIN_BRANCH_COUNT`, `BRANCH_CHANCE`, `MAX_BRANCH_DEPTH`.  
+- **Environment**: `BASE_NUTRIENT`, `NUTRIENT_DIFFUSION`, `ENV_GRID_CELL_SIZE`.  
+- **Anastomosis**: `ANASTOMOSIS_RADIUS` for fusing tips with existing nodes.  
+- **Resource Flow**: `RESOURCE_FLOW_RATE`, controlling how quickly node resources equalize.  
+- **Appearance**: `MAIN_LINE_WIDTH`, `MAIN_ALPHA` vs. `SECONDARY_LINE_WIDTH`, `SECONDARY_ALPHA`, hue shifts, etc.  
+- **Perlin Noise**: `PERLIN_SCALE`, `ANGLE_DRIFT_STRENGTH`, `WIGGLE_STRENGTH`—influencing how wavy the hyphae become.
 
-### Filling the Dish More Thoroughly
-- Increase **`MAIN_TRUNK_COUNT`** or **`SECONDARY_BRANCH_CHANCE`**.  
-- Increase **`MAX_SECONDARY_DEPTH`** to allow deeper branching.  
-- Decrease **`MAX_DENSITY`** if you don’t want indefinite overlap; or **increase** it to allow many lines in the same area.
-
-### Adjusting Visual Styles
-- **`BASE_HUE`** around `50` is a slight yellowish-white. Try `0` for red, `220` for bluish, etc.  
-- **`FADE_START_FACTOR`**: If you want less fading near the edge, set it lower (like 0.95 → fade only in final 5% of radius).  
-- **Shadow** and **Glow**: adjust **`SHADOW_BLUR`** and **`SHADOW_COLOR`**.
-
-### Performance Considerations
-- High branching can produce thousands of tips, slowing down the animation.  
-- You may want to:
-  - Cap the total number of tips.  
-  - Lower `branchChance`.  
-  - Shorten `maxLife`.  
+Experiment to see how more or less resource, bigger or smaller `ANASTOMOSIS_RADIUS`, or stronger Perlin `ANGLE_DRIFT_STRENGTH` changes the result.
 
 ---
 
-## Limitations & Future Extensions
+## Future Extensions
 
-- **Real Hyphal Fusion**: Actual mycelium often undergoes **anastomosis** (hyphae fusing). We simply stop lines if they become too dense. A more advanced approach might fuse them into a single network node.  
-- **Nutrient Gradients**: Real fungi grow toward nutrient sources, slow in barren areas. We do not model resource flow.  
-- **3D Substrates**: Mycelium is inherently 3D. Our simulation is strictly 2D on the canvas.  
-- **Environmental Factors**: Temperature, moisture, competition, etc., not included.  
-- **Exact Rhizomorphic Shapes**: While we produce rope-like trunks, actual species have varied morphologies influenced by genetics and environment.
+- **3D Substrate**: Model real volumetric growth, requiring a 3D environment grid.  
+- **More Complex Resource**: If you want a PDE-based approach for nutrient diffusion, you’d implement multi-step partial differential equations.  
+- **Fusing Edges**: Currently, we anastomose at nodes only. Real hypha can also fuse along segments.  
+- **Branching Heuristics**: Let tips sense resource gradients more accurately, branching more in high-nutrient zones.  
+- **Hyphal Thickening**: If a certain edge gets a lot of resource flow, increase line width visually to mimic cord formation.
 
-Despite these simplifications, the simulation captures a **visually compelling** approximation of **rhizomorphic** expansion, with **thick central cords** and **fainter** side filaments.
+Despite these limitations, this project offers a **richer** approximation of actual fungal growth than a simple static filament drawing—illustrating **resource-based** growth, **anastomosis**, and **iterative** tip movement.
 
----
-
-## License
-
-Licensed under the **MIT License**—you’re free to use, modify, and distribute this code. For details, see the `LICENSE` file or [choosealicense.com](https://choosealicense.com/licenses/mit/).
-
----
-
-**Enjoy experimenting** with these parameters to achieve the exact ropey, radial growth you envision. If you have further questions or improvements—like incorporating more realistic biological rules—feel free to open an issue or pull request. Happy mycelium-growing!
+Enjoy experimenting with these parameters to achieve the exact ropey, radial growth you envision. If you have further questions or ideas for improvements—like more advanced resource diffusion or 3D expansions—feel free to open an issue or submit a pull request. Happy mycelium-growing!
