@@ -31,13 +31,15 @@ import {
   BRANCH_DECAY,
   ANASTOMOSIS_RADIUS,
   INITIAL_RESOURCE_PER_TIP,
-  NUTRIENT_CONSUMPTION_RATE,
-  GROWTH_SPEED_MULTIPLIER,
+  RESOURCE_FLOW_RATE,
   SECONDARY_FAN_COUNT,
   WIDER_SECONDARY_ANGLE,
   SHADOW_BLUR,
-  SHADOW_COLOR
+  SHADOW_COLOR,
+  NUTRIENT_CONSUMPTION_RATE,
+  GROWTH_SPEED_MULTIPLIER // Imported from constants.ts
 } from "./constants.js";
+
 import { EnvironmentGPU } from "./environmentGPU.js";
 
 export type GrowthType = "main" | "secondary";
@@ -52,6 +54,9 @@ export interface HyphaTip {
   resource: number; // Tracks the resource available to the tip
 }
 
+/**
+ * GrowthManager class handles the simulation of hyphal growth.
+ */
 export class GrowthManager {
   private tips: HyphaTip[] = [];
   private growthRadius: number;
@@ -83,7 +88,7 @@ export class GrowthManager {
    */
   public init() {
     this.tips = [];
-    this.ctx.fillStyle = "black";
+    this.ctx.fillStyle = "rgba(0, 0, 0, 1)"; // Opaque black background
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     // Create main trunks from the center
@@ -109,7 +114,7 @@ export class GrowthManager {
     this.ctx.fillStyle = `rgba(0, 0, 0, ${BACKGROUND_ALPHA})`;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Perform multiple simulation steps per frame based on TIME_LAPSE_FACTOR and GROWTH_SPEED_MULTIPLIER
+    // Perform multiple simulation steps per frame based on TIME_LAPSE_FACTOR
     const totalSteps = TIME_LAPSE_FACTOR; // Adjust as needed
     for (let i = 0; i < totalSteps; i++) {
       this.simOneStep();
@@ -226,34 +231,46 @@ export class GrowthManager {
     let lineWidth: number;
     let alpha: number;
     if (type === "main") {
-      lineWidth = MAIN_LINE_WIDTH; // e.g., 5.0
+      lineWidth = MAIN_LINE_WIDTH; // e.g., 6.0
       alpha = MAIN_ALPHA;           // e.g., 1
     } else {
-      lineWidth = SECONDARY_LINE_WIDTH; // e.g., 2.0
+      lineWidth = SECONDARY_LINE_WIDTH; // e.g., 3.0
       alpha = SECONDARY_ALPHA;           // e.g., 0.7
     }
-  
+
     // Apply subtle color variation
     const hueShift = Math.floor(Math.random() * 20) - 10; // ±10 degrees
     const hue = BASE_HUE + hueShift;
-  
+
     // Set stroke style with increased saturation for visibility
-    this.ctx.strokeStyle = `hsla(${hue}, 50%, ${BASE_LIGHTNESS}%, ${alpha})`; // Increased saturation to 50%
+    this.ctx.strokeStyle = `hsla(${hue}, 100%, ${BASE_LIGHTNESS}%, ${alpha})`; // High saturation for bright lines
     this.ctx.lineWidth = lineWidth;
-  
+
     // Apply shadows for depth effect
     this.ctx.shadowBlur = SHADOW_BLUR;
     this.ctx.shadowColor = SHADOW_COLOR;
-  
+
     // Draw the line segment
     this.ctx.beginPath();
     this.ctx.moveTo(oldX, oldY);
     this.ctx.lineTo(newX, newY);
     this.ctx.stroke();
-  
+
     // Reset shadow to prevent it from affecting other drawings
     this.ctx.shadowBlur = 0;
     this.ctx.shadowColor = "transparent";
+
+    // **Optional Debugging:** Draw a small circle at the new tip position
+    /*
+    this.ctx.fillStyle = 'red';
+    this.ctx.beginPath();
+    this.ctx.arc(newX, newY, 2, 0, Math.PI * 2);
+    this.ctx.fill();
+    */
+
+    // **Optional Debugging:** Log segment drawing
+    /*
+    console.log(`Drawing ${type} segment from (${oldX}, ${oldY}) to (${newX}, ${newY})`);
+    */
   }
-  
 }

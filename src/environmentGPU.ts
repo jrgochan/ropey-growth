@@ -43,44 +43,44 @@ export class EnvironmentGPU {
   private canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext | WebGLRenderingContext;
 
-    /**
+  /**
    * Constructor initializes the EnvironmentGPU.
    * @param width - Width of the main canvas.
    * @param height - Height of the main canvas.
    * @param canvas - The canvas element dedicated to environment rendering.
    */
-    constructor(width: number, height: number, canvas: HTMLCanvasElement) {
-      // Calculate grid dimensions based on cell size
-      this.cols = Math.ceil(width / ENV_GRID_CELL_SIZE);
-      this.rows = Math.ceil(height / ENV_GRID_CELL_SIZE);
-  
-      // Initialize CPU nutrient array with BASE_NUTRIENT
-      this.nutrientCPU = new Float32Array(this.rows * this.cols);
-      this.nutrientCPU.fill(BASE_NUTRIENT);
-  
-      // Initialize GPU.js
-      this.gpu = new GPU();
-  
-      // Use the provided canvas
-      this.canvas = canvas;
-      this.canvas.width = this.cols;
-      this.canvas.height = this.rows;
-  
-      // Obtain WebGL2 or WebGL1 context
-      this.gl =
-        this.canvas.getContext("webgl2") ||
-        this.canvas.getContext("webgl");
-      if (!this.gl) {
-        console.error("Failed to obtain WebGL context.");
-        throw new Error("WebGL not supported on this device/browser");
-      }
-  
-      // Initialize GPU Kernels
-      this.initializeKernels();
-  
-      // Initial render
-      this.renderToCanvas();
+  constructor(width: number, height: number, canvas: HTMLCanvasElement) {
+    // Calculate grid dimensions based on cell size
+    this.cols = Math.ceil(width / ENV_GRID_CELL_SIZE);
+    this.rows = Math.ceil(height / ENV_GRID_CELL_SIZE);
+
+    // Initialize CPU nutrient array with BASE_NUTRIENT
+    this.nutrientCPU = new Float32Array(this.rows * this.cols);
+    this.nutrientCPU.fill(BASE_NUTRIENT);
+
+    // Initialize GPU.js
+    this.gpu = new GPU();
+
+    // Use the provided canvas (off-screen)
+    this.canvas = canvas;
+    this.canvas.width = this.cols;
+    this.canvas.height = this.rows;
+
+    // Obtain WebGL2 or WebGL1 context
+    this.gl =
+      this.canvas.getContext("webgl2") ||
+      this.canvas.getContext("webgl");
+    if (!this.gl) {
+      console.error("Failed to obtain WebGL context.");
+      throw new Error("WebGL not supported on this device/browser");
     }
+
+    // Initialize GPU Kernels
+    this.initializeKernels();
+
+    // Initial render
+    this.renderToCanvas();
+  }
 
   /**
    * Initializes the diffusion and render kernels.
@@ -121,21 +121,21 @@ export class EnvironmentGPU {
       .setOutput([this.cols, this.rows])
       .setConstants({ NUTRIENT_DIFFUSION });
 
-    // Render Kernel: Renders the nutrient levels as grayscale colors
+    // Render Kernel: Renders the nutrient levels as semi-transparent grayscale colors
     this.renderKernel = this.gpu
-    .createKernel(function (data: number[][]) {
-      const y = this.thread.y;
-      const x = this.thread.x;
-  
-      const val = data[y][x];
-      // Scale and clamp the nutrient value for better visibility
-      const c = Math.min(Math.max(val / 5.0, 0), 1.0); // Adjusted scaling
-      this.color(c, c, c, 1.0); // RGBA
-    })
-    .setOutput([this.cols, this.rows])
-    .setGraphical(true)
-    .setCanvas(this.canvas)
-    .setContext(this.gl);
+      .createKernel(function (data: number[][]) {
+        const y = this.thread.y;
+        const x = this.thread.x;
+
+        const val = data[y][x];
+        // Invert nutrient value to map higher nutrients to darker shades
+        const c = Math.min(Math.max(1.0 - val / 100.0, 0), 1.0); // Inverted for dark colors
+        this.color(c, c, c, 0.3); // RGBA with alpha=0.3 for transparency
+      })
+      .setOutput([this.cols, this.rows])
+      .setGraphical(true)
+      .setCanvas(this.canvas)
+      .setContext(this.gl);
   }
 
   /**
@@ -182,14 +182,14 @@ export class EnvironmentGPU {
   }
 
   /**
-   * Draws the environment canvas onto the main canvas context.
-   * @param mainCtx - The 2D rendering context of the main canvas.
-   * @param w - Width of the main canvas.
-   * @param h - Height of the main canvas.
+   * Draws the environment canvas onto the specified canvas context.
+   * @param targetCtx - The 2D rendering context of the target canvas.
+   * @param targetWidth - Width of the target canvas.
+   * @param targetHeight - Height of the target canvas.
    */
-  public drawEnvOnMainContext(mainCtx: CanvasRenderingContext2D, w: number, h: number) {
-    // Draw the environment canvas onto the main canvas, scaling it appropriately
-    mainCtx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, w, h);
+  public drawEnvOnTargetContext(targetCtx: CanvasRenderingContext2D, targetWidth: number, targetHeight: number) {
+    // Draw the environment canvas onto the target canvas, scaling it appropriately
+    targetCtx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, targetWidth, targetHeight);
   }
 
   /**
