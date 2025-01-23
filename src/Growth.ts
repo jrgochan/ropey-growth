@@ -1,38 +1,29 @@
 /***************************************************
  * growth.ts
- *
- * Main iterative logic bridging environment + network:
- * - Manages an array of 'tips' (active hyphal ends)
- * - Each tip references a node in MycelialNetwork
- * - Moves step-by-step, consumes nutrients, 
- *   can fuse with existing nodes (anastomosis), 
- *   and draws lines for each new segment.
- *
- * Updated to include GROWTH_SPEED_MULTIPLIER so
- * you can dramatically speed up the outward spread.
+ * 
+ * Iterative logic bridging environment + network:
+ * - Manages an array of 'tips'
+ * - Moves them step-by-step, fanning out secondaries
+ * - Resource constraints are loosened:
+ *   - We do NOT kill tips if node.resource < 0.1 
  ***************************************************/
 
 import { EnvironmentGrid } from "./environment.js";
 import { MycelialNetwork } from "./mycelialNetwork.js";
-import { Perlin } from "./perlin.js";
+import { Perlin } from "./Perlin.js";
 
 import {
-  // Growth rate & life
   STEP_SIZE,
-  GROWTH_SPEED_MULTIPLIER,  // NEW parameter to speed up growth
-
   BASE_LIFE,
   BRANCH_DECAY,
   BRANCH_CHANCE,
   MAX_BRANCH_DEPTH,
   ANASTOMOSIS_RADIUS,
 
-  // Perlin
   PERLIN_SCALE,
   ANGLE_DRIFT_STRENGTH,
   WIGGLE_STRENGTH,
 
-  // Rendering & environment
   BACKGROUND_ALPHA,
   SHADOW_BLUR,
   SHADOW_COLOR,
@@ -44,21 +35,15 @@ import {
   BASE_LIGHTNESS,
   FADE_START_FACTOR,
   FADE_END_FACTOR,
-  NUTRIENT_CONSUMPTION_RATE
+  NUTRIENT_CONSUMPTION_RATE,
 
+  TIME_LAPSE_FACTOR,
+  SECONDARY_FAN_COUNT,
+  WIDER_SECONDARY_ANGLE
 } from "./constants.js";
 
-// We distinguish "main" vs. "secondary" tips for coloring, thickness, etc.
 export type GrowthType = "main" | "secondary";
 
-/**
- * HyphaTip:
- * - nodeId: which node in MycelialNetwork it corresponds to
- * - angle: current direction (radians)
- * - life: how many steps remain
- * - depth: how many times we branched from the original trunk
- * - growthType: "main" or "secondary"
- */
 export interface HyphaTip {
   nodeId: number;
   angle: number;
@@ -67,17 +52,6 @@ export interface HyphaTip {
   growthType: GrowthType;
 }
 
-/**
- * GrowthManager:
- * - Holds an array of HyphaTip
- * - Each frame, does:
- *   1) Flow resources in the MycelialNetwork
- *   2) Update environment (diffuse nutrients)
- *   3) For each tip: move forward (with Perlin-based drift), 
- *      anastomose or create node, consume resources
- *   4) Draw the line segment
- *   5) Possibly spawn new branches
- */
 export class GrowthManager {
   private tips: HyphaTip[] = [];
 
@@ -93,23 +67,15 @@ export class GrowthManager {
     private perlin: Perlin
   ) {}
 
-  /**
-   * init():
-   * Clears old data, spawns main trunk tips at the center.
-   * mainBranchCount => how many main trunks.
-   */
   public init(mainBranchCount: number) {
     this.tips = [];
 
-    // Fill background
     this.ctx.fillStyle = "black";
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Create main trunk tips + corresponding node in the network
+    // Create main trunk tips
     for (let i = 0; i < mainBranchCount; i++) {
       const angle = Math.random() * Math.PI * 2;
-
-      // Create a node in the center for each trunk
       const nodeId = this.network.createNode(this.centerX, this.centerY);
       this.tips.push({
         nodeId,
@@ -121,140 +87,107 @@ export class GrowthManager {
     }
   }
 
-  /**
-   * updateAndDraw():
-   * Called each animation frame:
-   * 1) Flow resources in the network
-   * 2) Update environment
-   * 3) Slight fade of old lines
-   * 4) Move each tip, check collisions/anastomosis, consume resource
-   * 5) Possibly spawn branches
-   * 6) Prune dead tips
-   */
   public updateAndDraw() {
-    // 1) Flow resources in the MycelialNetwork
-    this.network.flowResources();
-
-    // 2) Update environment (nutrient diffusion)
-    this.environment.updateEnvironment();
-
-    // 3) Slightly fade previous frame => ghost effect
+    // Slight fade each frame
     this.ctx.fillStyle = `rgba(0,0,0,${BACKGROUND_ALPHA})`;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // Setup glow / shadow
     this.ctx.shadowBlur = SHADOW_BLUR;
     this.ctx.shadowColor = SHADOW_COLOR;
 
+    // Time-lapse: multiple sub-steps
+    for (let i = 0; i < TIME_LAPSE_FACTOR; i++) {
+      this.simulateOneStep();
+    }
+  }
+
+  private simulateOneStep() {
+    // Flow resources
+    this.network.flowResources();
+
+    // Environment update
+    this.environment.updateEnvironment();
+
     const newTips: HyphaTip[] = [];
 
-    // 4) Move each tip
     for (let i = 0; i < this.tips.length; i++) {
       const tip = this.tips[i];
       if (tip.life <= 0) continue;
 
-      // Get the node from the MycelialNetwork
       const node = this.network.getNode(tip.nodeId);
       if (!node) continue;
 
       const oldX = node.x;
       const oldY = node.y;
 
-      // Perlin-based angle drift
+      // Perlin drift
       const noiseVal = this.perlin.noise2D(node.x * PERLIN_SCALE, node.y * PERLIN_SCALE);
       tip.angle += noiseVal * ANGLE_DRIFT_STRENGTH;
 
-      // Perlin-based perpendicular wiggle
+      // Perlin wiggle
       const noiseVal2 = this.perlin.noise2D(
         (node.x + 1000) * PERLIN_SCALE,
         (node.y + 1000) * PERLIN_SCALE
       );
       const wiggle = noiseVal2 * WIGGLE_STRENGTH;
 
-      // ***** Enhanced Growth Factor *****
-      // Multiply the movement by GROWTH_SPEED_MULTIPLIER to speed up expansion
-      const movement = STEP_SIZE * GROWTH_SPEED_MULTIPLIER;
+      // Normal step
+      const stepX = node.x + Math.cos(tip.angle) * STEP_SIZE
+        + Math.cos(tip.angle + Math.PI / 2) * wiggle * 0.2;
+      const stepY = node.y + Math.sin(tip.angle) * STEP_SIZE
+        + Math.sin(tip.angle + Math.PI / 2) * wiggle * 0.2;
 
-      // Move forward
-      const stepX = node.x
-        + Math.cos(tip.angle) * movement
-        + Math.cos(tip.angle + Math.PI / 2) * wiggle * 0.2 * GROWTH_SPEED_MULTIPLIER;
-
-      const stepY = node.y
-        + Math.sin(tip.angle) * movement
-        + Math.sin(tip.angle + Math.PI / 2) * wiggle * 0.2 * GROWTH_SPEED_MULTIPLIER;
-
-      // Check boundary (petri-dish radius)
+      // Boundary
       const dist = Math.hypot(stepX - this.centerX, stepY - this.centerY);
       if (dist > this.growthRadius) {
         tip.life = 0;
         continue;
       }
 
-      // Attempt anastomosis: see if there's an existing node near (stepX, stepY)
+      // anastomosis
       const nearNodeId = this.findNodeCloseTo(stepX, stepY, ANASTOMOSIS_RADIUS);
       let newNodeId: number;
       if (nearNodeId >= 0) {
-        // fuse with that node
         newNodeId = nearNodeId;
       } else {
-        // create a new node in the network at (stepX, stepY)
         newNodeId = this.network.createNode(stepX, stepY);
       }
 
-      // connect old node to new node
       this.network.connectNodes(tip.nodeId, newNodeId);
-
-      // update tip's node reference
       tip.nodeId = newNodeId;
-
-      // reduce life
       tip.life--;
 
-      // consume environment resource (nutrient)
+      // consume resource
       const consumed = this.environment.consumeResource(stepX, stepY, NUTRIENT_CONSUMPTION_RATE);
-      // add to the node's resource
       const cNode = this.network.getNode(newNodeId);
       if (cNode) {
         cNode.resource += consumed;
-        // if resource is too low => starve
-        if (cNode.resource < 0.1) {
-          tip.life = 0;
-        }
+        // Removing the 'if (cNode.resource < 0.1) tip.life=0' => no starve
       }
 
-      // Draw the line segment
+      // draw
       this.drawSegment(oldX, oldY, stepX, stepY, tip, dist);
 
-      // Possibly spawn a new branch
-      if (
-        tip.growthType === "main" &&
-        tip.depth < MAX_BRANCH_DEPTH &&
-        Math.random() < BRANCH_CHANCE
-      ) {
-        // new angle offset
-        const branchAngle = tip.angle + (Math.random() - 0.5) * Math.PI;
-        newTips.push({
-          nodeId: newNodeId,
-          angle: branchAngle,
-          life: tip.life * BRANCH_DECAY,
-          depth: tip.depth + 1,
-          growthType: "secondary"
-        });
+      // spawn secondaries?
+      if (tip.growthType === "main" && tip.depth < MAX_BRANCH_DEPTH && Math.random() < BRANCH_CHANCE) {
+        for (let fc = 0; fc < SECONDARY_FAN_COUNT; fc++) {
+          const spread = (Math.random() - 0.5) * WIDER_SECONDARY_ANGLE;
+          const branchAngle = tip.angle + spread;
+          newTips.push({
+            nodeId: newNodeId,
+            angle: branchAngle,
+            life: tip.life * BRANCH_DECAY,
+            depth: tip.depth + 1,
+            growthType: "secondary"
+          });
+        }
       }
     }
 
-    // Add newly spawned tips
     this.tips.push(...newTips);
-
-    // remove dead tips
     this.tips = this.tips.filter(t => t.life > 0);
   }
 
-  /**
-   * Look for an existing node in MycelialNetwork within `radius` of (x,y).
-   * If found, return nodeId; else return -1.
-   */
   private findNodeCloseTo(x: number, y: number, radius: number): number {
     const allNodes = this.network.getAllNodes();
     for (const n of allNodes) {
@@ -266,10 +199,6 @@ export class GrowthManager {
     return -1;
   }
 
-  /**
-   * Draw the line segment from old to new point, 
-   * with styling based on main/secondary growth.
-   */
   private drawSegment(
     oldX: number,
     oldY: number,
@@ -289,7 +218,6 @@ export class GrowthManager {
       alpha = SECONDARY_ALPHA;
     }
 
-    // fade near the dish edge
     let fadeFactor = 1;
     const fadeStart = this.growthRadius * FADE_START_FACTOR;
     const fadeEnd   = this.growthRadius * FADE_END_FACTOR;
@@ -299,7 +227,6 @@ export class GrowthManager {
     }
     alpha *= fadeFactor;
 
-    // Slight random hue shift
     const hueShift = Math.floor(Math.random() * 30) - 15;
     const hue = BASE_HUE + hueShift;
 
