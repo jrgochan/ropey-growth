@@ -1,7 +1,7 @@
 {
   "name": "ropey-growth",
-  "version": "1.0.0",
-  "description": "A visualization of organic growth using TypeScript, Canvas, and Perlin noise, modularized into multiple files.",
+  "version": "2.0.0",
+  "description": "Iterative Mycelial Growth Simulation in TypeScript",
   "type": "module",
   "scripts": {
     "build": "tsc",

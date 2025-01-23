@@ -1,40 +1,36 @@
 /**
  * constants.ts
  *
- * A single place to hold all tunable parameters and constants
- * for the ropey growth visualization. 
+ * Tunable parameters for iterative fungal (mycelial) growth.
  */
 
-export const GROWTH_RADIUS_FACTOR = 0.45; // fraction of min(width, height)
-export const MAX_DENSITY = 9999;
+// Canvas + growth area
+export const GROWTH_RADIUS_FACTOR = 0.45; // fraction of min(windowWidth, windowHeight)
+
+// Density + grid
 export const CELL_SIZE = 15;
+export const MAX_DENSITY = 120; // how many lines can pass a cell before it stops growth
 
-// Branching
-export const MAIN_BRANCH_COUNT = 20;
-export const BASE_SECONDARY_CHANCE = 0.9;
-export const BASE_BRANCH_FACTOR = 6; 
-export const SECONDARY_ANGLE_VARIANCE = Math.PI / 2;
-export const SECONDARY_DECAY = 0.8;
-export const MAIN_BRANCH_STEPS = 60;
-export const SECONDARY_BRANCH_STEPS = 30;
-
-// Fade near edge
-export const FADE_START_FACTOR = 0.9;
-export const FADE_END_FACTOR = 1.0;
+// Hyphal growth parameters
+export const STEP_SIZE = 2.0;     // how far each tip moves per iteration
+export const BRANCH_CHANCE = 0.01; // chance each tip spawns a new branch each frame
+export const BRANCH_DECAY = 0.8;   // fraction of parent's remaining life for new branch
+export const MAX_LIFE = 800;       // max steps a tip can live
 
 // Perlin noise
-export const PERLIN_SCALE = 0.02;
-export const ANGLE_DRIFT_STRENGTH = 0.15;
-export const WIGGLE_STRENGTH = 3;
+export const PERLIN_SCALE = 0.005; 
+export const ANGLE_DRIFT_STRENGTH = 0.1; 
+export const WIGGLE_STRENGTH = 1.2; 
+
+// Fading near circle edge
+export const EDGE_FADE_START = 0.9; // e.g. 0.9 => fade near 90% radius
 
 // Appearance
+export const BACKGROUND_ALPHA = 0.04;  // how quickly old lines fade each frame (0 to 1)
 export const SHADOW_BLUR = 6;
-export const SHADOW_COLOR = "rgba(255, 255, 255, 0.5)";
+export const SHADOW_COLOR = "rgba(255,255,255,0.5)";
 
-// Final radial gradient overlay
-export const GRADIENT_INNER_OPACITY = 0.2;
-export const GRADIENT_OUTER_OPACITY = 0.8;
-
-// "secondaryFillFactor" controls how full the space between main branches gets.
-// 0 -> no secondaries; 1 -> maximum secondaries
-export let secondaryFillFactor = 0.8;
+// If you want subtle color variation
+export const BASE_HUE = 50;
+export const BASE_LIGHTNESS = 95;
+export const BASE_ALPHA = 0.8;  // line alpha

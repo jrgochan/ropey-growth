@@ -1,7 +1,7 @@
 /***************************************************
  * Perlin.ts
  *
- * Exports a Perlin class for smooth noise usage.
+ * Basic Perlin noise implementation.
  ***************************************************/
 
 export class Perlin {
@@ -23,7 +23,7 @@ export class Perlin {
       this.p[i] = this.p[r];
       this.p[r] = tmp;
     }
-    // Extend permutation array
+    // Extend permutation
     for (let i = 0; i < 512; i++) {
       this.perm[i] = this.p[i & 255];
     }
@@ -32,16 +32,18 @@ export class Perlin {
   private fade(t: number): number {
     return ((6 * t - 15) * t + 10) * t * t * t;
   }
+
   private lerp(a: number, b: number, t: number): number {
     return a + t * (b - a);
   }
+
   private grad(hash: number, x: number, y: number): number {
     switch (hash & 3) {
       case 0: return x + y;
       case 1: return -x + y;
       case 2: return x - y;
       case 3: return -x - y;
-      default: return 0; 
+      default: return 0;
     }
   }
 
