@@ -59,7 +59,7 @@ export const config = {
     // -----------------------------
     // Growth Mechanics
     // -----------------------------
-    STEP_SIZE: 2,                    // Base step size for each iteration
+    STEP_SIZE: 1.5,                    // Base step size for each iteration
     GROWTH_SPEED_MULTIPLIER: 0.5,    // Multiplier to control overall growth speed
     BASE_LIFE: 3000,                 // Base life for main tips
     BRANCH_DECAY: 0.9,               // Fraction of parent's life for branches
@@ -132,6 +132,6 @@ export const config = {
     // -----------------------------
     // Miscellaneous Parameters
     // -----------------------------
-    ANASTOMOSIS_RADIUS: 3,              // Radius within which tips fuse
+    ANASTOMOSIS_RADIUS: 0.75,              // Radius within which tips fuse
   };
   

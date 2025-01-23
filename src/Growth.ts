@@ -264,6 +264,7 @@ export class GrowthManager {
       saturation = 0;                       // 0% for white
       lightness = calculatedLightness;      // Dynamic lightness based on depth
     }
+    console.log(`Drawing segment: (${oldX}, ${oldY}) -> (${newX}, ${newY})`);
 
     // Use hsla with dynamic lightness
     this.ctx.strokeStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
