@@ -37,11 +37,16 @@ export class Perlin {
 
   private grad(hash: number, x: number, y: number): number {
     switch (hash & 3) {
-      case 0: return x + y;
-      case 1: return -x + y;
-      case 2: return x - y;
-      case 3: return -x - y;
-      default: return 0; 
+      case 0:
+        return x + y;
+      case 1:
+        return -x + y;
+      case 2:
+        return x - y;
+      case 3:
+        return -x - y;
+      default:
+        return 0;
     }
   }
 
@@ -52,10 +57,10 @@ export class Perlin {
     const xf = x - Math.floor(x);
     const yf = y - Math.floor(y);
 
-    const topRight =    this.perm[this.perm[X + 1] + Y + 1];
-    const topLeft =     this.perm[this.perm[X] + Y + 1];
+    const topRight = this.perm[this.perm[X + 1] + Y + 1];
+    const topLeft = this.perm[this.perm[X] + Y + 1];
     const bottomRight = this.perm[this.perm[X + 1] + Y];
-    const bottomLeft =  this.perm[this.perm[X] + Y];
+    const bottomLeft = this.perm[this.perm[X] + Y];
 
     const u = this.fade(xf);
     const v = this.fade(yf);
@@ -63,12 +68,12 @@ export class Perlin {
     const x1 = this.lerp(
       this.grad(this.perm[bottomLeft], xf, yf),
       this.grad(this.perm[bottomRight], xf - 1, yf),
-      u
+      u,
     );
     const x2 = this.lerp(
       this.grad(this.perm[topLeft], xf, yf - 1),
       this.grad(this.perm[topRight], xf - 1, yf - 1),
-      u
+      u,
     );
 
     return this.lerp(x1, x2, v);

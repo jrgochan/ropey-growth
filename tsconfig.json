@@ -2,15 +2,15 @@
 
 {
   "compilerOptions": {
-    "target": "ES6",                                 // Target ECMAScript version
-    "module": "ES6",                                 // Module system to use
-    "outDir": "./dist",                              // Output directory for compiled JS
-    "rootDir": "./src",                              // Root directory of source TS files
-    "strict": true,                                  // Enable strict type-checking options
-    "esModuleInterop": true,                         // Enable interoperability between CommonJS and ES Modules
-    "forceConsistentCasingInFileNames": true,        // Ensure consistent casing in file names
-    "moduleResolution": "node",                      // Module resolution strategy
-    "skipLibCheck": true                             // Skip type checking of declaration files
+    "target": "ES6", // Target ECMAScript version
+    "module": "ES6", // Module system to use
+    "outDir": "./dist", // Output directory for compiled JS
+    "rootDir": "./src", // Root directory of source TS files
+    "strict": true, // Enable strict type-checking options
+    "esModuleInterop": true, // Enable interoperability between CommonJS and ES Modules
+    "forceConsistentCasingInFileNames": true, // Ensure consistent casing in file names
+    "moduleResolution": "node", // Module resolution strategy
+    "skipLibCheck": true // Skip type checking of declaration files
   },
   "include": ["src"],
   "exclude": ["node_modules"]

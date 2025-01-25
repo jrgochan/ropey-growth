@@ -1,9 +1,7 @@
 // src/growth.ts
 
 import { Perlin } from "./Perlin.js";
-import { 
-  config
-} from "./constants.js"; // Import the config object
+import { config } from "./constants.js"; // Import the config object
 
 import { EnvironmentGPU } from "./environmentGPU.js";
 import { MycelialNetwork } from "./mycelialNetwork.js";
@@ -46,10 +44,12 @@ export class GrowthManager {
     private centerY: number,
     private perlin: Perlin,
     private envGPU: EnvironmentGPU,
-    private network: MycelialNetwork // Injecting the network for resource flow
+    private network: MycelialNetwork, // Injecting the network for resource flow
   ) {
     this.growthRadius = Math.min(width, height) * config.GROWTH_RADIUS_FACTOR;
-    console.log(`GrowthManager initialized with growthRadius: ${this.growthRadius}`);
+    console.log(
+      `GrowthManager initialized with growthRadius: ${this.growthRadius}`,
+    );
   }
 
   /**
@@ -70,16 +70,18 @@ export class GrowthManager {
         life: config.BASE_LIFE,
         depth: 0,
         growthType: "main",
-        resource: config.INITIAL_RESOURCE_PER_TIP
+        resource: config.INITIAL_RESOURCE_PER_TIP,
       };
       this.tips.push(newTip);
       console.log(`Initialized main tip ${i + 1}:`, newTip);
     }
 
     // Create network nodes for each main branch
-    this.tips.forEach(tip => {
+    this.tips.forEach((tip) => {
       const nodeId = this.network.createNode(tip.x, tip.y, tip.resource);
-      console.log(`Created network node ${nodeId} for tip at (${tip.x}, ${tip.y})`);
+      console.log(
+        `Created network node ${nodeId} for tip at (${tip.x}, ${tip.y})`,
+      );
     });
   }
 
@@ -112,14 +114,22 @@ export class GrowthManager {
       if (tip.life <= 0) continue;
 
       // Consume nutrient from the environment
-      const consumed = this.envGPU.consumeResource(tip.x, tip.y, config.NUTRIENT_CONSUMPTION_RATE);
+      const consumed = this.envGPU.consumeResource(
+        tip.x,
+        tip.y,
+        config.NUTRIENT_CONSUMPTION_RATE,
+      );
       tip.resource -= consumed;
-      console.log(`Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) consumed ${consumed} resources. Remaining: ${tip.resource.toFixed(2)}`);
+      console.log(
+        `Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) consumed ${consumed} resources. Remaining: ${tip.resource.toFixed(2)}`,
+      );
 
       // If resource is depleted, the tip dies
       if (tip.resource <= 0) {
         tip.life = 0;
-        console.log(`Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has died due to resource depletion.`);
+        console.log(
+          `Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has died due to resource depletion.`,
+        );
         continue;
       }
 
@@ -127,13 +137,16 @@ export class GrowthManager {
       const oldY = tip.y;
 
       // Update angle based on Perlin noise for smooth drift
-      const nVal = this.perlin.noise2D(tip.x * config.PERLIN_SCALE, tip.y * config.PERLIN_SCALE);
+      const nVal = this.perlin.noise2D(
+        tip.x * config.PERLIN_SCALE,
+        tip.y * config.PERLIN_SCALE,
+      );
       tip.angle += nVal * config.ANGLE_DRIFT_STRENGTH;
 
       // Apply wiggle for additional randomness
       const nVal2 = this.perlin.noise2D(
         (tip.x + 1234) * config.PERLIN_SCALE,
-        (tip.y + 1234) * config.PERLIN_SCALE
+        (tip.y + 1234) * config.PERLIN_SCALE,
       );
       const wiggle = nVal2 * config.WIGGLE_STRENGTH;
 
@@ -142,14 +155,22 @@ export class GrowthManager {
       const actualStepSize = config.STEP_SIZE * (0.5 + stepMultiplier * 1.5); // Scale step size between 1*STEP_SIZE to 2.0*STEP_SIZE
 
       // Move the tip forward
-      tip.x += (Math.cos(tip.angle) * actualStepSize + Math.cos(tip.angle + Math.PI / 2) * wiggle * 0.2) * config.GROWTH_SPEED_MULTIPLIER;
-      tip.y += (Math.sin(tip.angle) * actualStepSize + Math.sin(tip.angle + Math.PI / 2) * wiggle * 0.2) * config.GROWTH_SPEED_MULTIPLIER;
+      tip.x +=
+        (Math.cos(tip.angle) * actualStepSize +
+          Math.cos(tip.angle + Math.PI / 2) * wiggle * 0.2) *
+        config.GROWTH_SPEED_MULTIPLIER;
+      tip.y +=
+        (Math.sin(tip.angle) * actualStepSize +
+          Math.sin(tip.angle + Math.PI / 2) * wiggle * 0.2) *
+        config.GROWTH_SPEED_MULTIPLIER;
 
       // Calculate distance from the center to enforce growth radius
       const dist = Math.hypot(tip.x - this.centerX, tip.y - this.centerY);
       if (dist > this.growthRadius) {
         tip.life = 0;
-        console.log(`Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has exceeded growth radius.`);
+        console.log(
+          `Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has exceeded growth radius.`,
+        );
         continue;
       }
 
@@ -160,7 +181,8 @@ export class GrowthManager {
       this.drawSegment(oldX, oldY, tip.x, tip.y, tip.growthType, tip.depth);
 
       // Handle branching
-      const adjustedBranchChance = config.BRANCH_CHANCE * (tip.resource / config.INITIAL_RESOURCE_PER_TIP); // More resources, higher chance
+      const adjustedBranchChance =
+        config.BRANCH_CHANCE * (tip.resource / config.INITIAL_RESOURCE_PER_TIP); // More resources, higher chance
       if (
         tip.depth < config.MAX_BRANCH_DEPTH &&
         Math.random() < adjustedBranchChance
@@ -168,11 +190,14 @@ export class GrowthManager {
         // Spawn multiple secondary tips based on SECONDARY_FAN_COUNT and WIDER_SECONDARY_ANGLE
         for (let i = 0; i < config.SECONDARY_FAN_COUNT; i++) {
           // Introduce more randomization in angle offset
-          const angleOffset = (Math.random() - 0.5) * config.WIDER_SECONDARY_ANGLE;
-          const newAngle = tip.angle + angleOffset + (Math.random() - 0.5) * 0.1; // Reduced additional random adjustment for smoother branches
+          const angleOffset =
+            (Math.random() - 0.5) * config.WIDER_SECONDARY_ANGLE;
+          const newAngle =
+            tip.angle + angleOffset + (Math.random() - 0.5) * 0.1; // Reduced additional random adjustment for smoother branches
 
           // Calculate spawn position slightly ahead to prevent immediate fusion
-          const spawnDistance = config.STEP_SIZE * config.GROWTH_SPEED_MULTIPLIER; // e.g., 2 * 0.5 = 1 unit ahead
+          const spawnDistance =
+            config.STEP_SIZE * config.GROWTH_SPEED_MULTIPLIER; // e.g., 2 * 0.5 = 1 unit ahead
           const spawnX = tip.x + Math.cos(newAngle) * spawnDistance;
           const spawnY = tip.y + Math.sin(newAngle) * spawnDistance;
 
@@ -180,45 +205,59 @@ export class GrowthManager {
             x: spawnX,
             y: spawnY,
             angle: newAngle,
-            life: Math.max(tip.life * config.BRANCH_DECAY, config.BASE_LIFE * 0.5), // Ensure a minimum lifespan
+            life: Math.max(
+              tip.life * config.BRANCH_DECAY,
+              config.BASE_LIFE * 0.5,
+            ), // Ensure a minimum lifespan
             depth: tip.depth + 1,
             growthType: "secondary", // All new branches are secondary
-            resource: config.INITIAL_RESOURCE_PER_TIP * 0.8 // Slightly reduced resource
+            resource: config.INITIAL_RESOURCE_PER_TIP * 0.8, // Slightly reduced resource
           };
 
           newTips.push(newTip);
-          console.log(`Spawned new secondary tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}) with angle ${newTip.angle.toFixed(2)}.`);
+          console.log(
+            `Spawned new secondary tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}) with angle ${newTip.angle.toFixed(2)}.`,
+          );
         }
       }
     }
 
     // Handle Anastomosis: Remove new tips that are too close to existing tips
     for (const newTip of newTips) {
-      const isTooClose = this.tips.some(tip => {
+      const isTooClose = this.tips.some((tip) => {
         const distance = Math.hypot(newTip.x - tip.x, newTip.y - tip.y);
-        return distance < config.ANASTOMOSIS_RADIUS && tip.growthType !== newTip.growthType;
+        return (
+          distance < config.ANASTOMOSIS_RADIUS &&
+          tip.growthType !== newTip.growthType
+        );
       });
 
       if (!isTooClose) {
         this.tips.push(newTip);
-        console.log(`Added new tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}).`);
+        console.log(
+          `Added new tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}).`,
+        );
       } else {
-        console.log(`New tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}) fused due to proximity.`);
+        console.log(
+          `New tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}) fused due to proximity.`,
+        );
       }
       // If too close, the newTip is not added (fuses with existing)
     }
 
     // Remove dead tips
-    const deadTips = this.tips.filter(t => t.life <= 0);
+    const deadTips = this.tips.filter((t) => t.life <= 0);
     if (deadTips.length > 0) {
       console.log(`Removing ${deadTips.length} dead tips.`);
-      this.tips = this.tips.filter(t => t.life > 0);
+      this.tips = this.tips.filter((t) => t.life > 0);
     }
 
     // Tip Culling to Control Performance
     const MAX_ACTIVE_TIPS = 1000; // Adjust as needed
     if (this.tips.length > MAX_ACTIVE_TIPS) {
-      console.log(`Maximum active tips reached (${MAX_ACTIVE_TIPS}). Removing oldest tips.`);
+      console.log(
+        `Maximum active tips reached (${MAX_ACTIVE_TIPS}). Removing oldest tips.`,
+      );
       this.tips.splice(0, this.tips.length - MAX_ACTIVE_TIPS);
     }
   }
@@ -238,10 +277,11 @@ export class GrowthManager {
     newX: number,
     newY: number,
     type: GrowthType,
-    depth: number
+    depth: number,
   ) {
     // Calculate lightness based on depth
-    let calculatedLightness = config.BASE_LIGHTNESS + (depth * config.LIGHTNESS_STEP);
+    let calculatedLightness =
+      config.BASE_LIGHTNESS + depth * config.LIGHTNESS_STEP;
     if (calculatedLightness > 100) calculatedLightness = 100; // Cap lightness at 100%
 
     // Determine line style based on growth type
@@ -254,15 +294,15 @@ export class GrowthManager {
     if (type === "main") {
       lineWidth = config.MAIN_LINE_WIDTH;
       alpha = config.MAIN_ALPHA;
-      hue = config.BASE_HUE;               // 0
-      saturation = 0;                       // 0% for white
-      lightness = calculatedLightness;      // Dynamic lightness based on depth
+      hue = config.BASE_HUE; // 0
+      saturation = 0; // 0% for white
+      lightness = calculatedLightness; // Dynamic lightness based on depth
     } else {
       lineWidth = config.SECONDARY_LINE_WIDTH;
       alpha = config.SECONDARY_ALPHA;
-      hue = config.BASE_HUE;               // 0
-      saturation = 0;                       // 0% for white
-      lightness = calculatedLightness;      // Dynamic lightness based on depth
+      hue = config.BASE_HUE; // 0
+      saturation = 0; // 0% for white
+      lightness = calculatedLightness; // Dynamic lightness based on depth
     }
     console.log(`Drawing segment: (${oldX}, ${oldY}) -> (${newX}, ${newY})`);
 
@@ -279,7 +319,9 @@ export class GrowthManager {
     this.ctx.moveTo(oldX, oldY);
     this.ctx.lineTo(newX, newY);
     this.ctx.stroke();
-    console.log(`Drew ${type} segment from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${newX.toFixed(2)}, ${newY.toFixed(2)}), Lightness: ${lightness}%`);
+    console.log(
+      `Drew ${type} segment from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${newX.toFixed(2)}, ${newY.toFixed(2)}), Lightness: ${lightness}%`,
+    );
 
     // Reset shadow to prevent it from affecting other drawings
     this.ctx.shadowBlur = 0;
@@ -295,9 +337,11 @@ export class GrowthManager {
     const radius = 2;
     this.ctx.beginPath();
     this.ctx.arc(tip.x, tip.y, radius, 0, Math.PI * 2);
-    this.ctx.fillStyle = 'white'; // Bright color for visibility
+    this.ctx.fillStyle = "white"; // Bright color for visibility
     this.ctx.fill();
-    console.log(`Drew hyphal tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}).`);
+    console.log(
+      `Drew hyphal tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}).`,
+    );
   }
 
   /**

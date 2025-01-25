@@ -1,6 +1,6 @@
 // src/environmentGPU.ts
 
-import { config } from './constants.js'; // Import the config object
+import { config } from "./constants.js"; // Import the config object
 
 /**
  * EnvironmentGPU class manages the environmental resources
@@ -20,7 +20,9 @@ export class EnvironmentGPU {
     this.width = width;
     this.height = height;
     this.initializeNutrientGrid();
-    console.log(`EnvironmentGPU initialized with width: ${width}, height: ${height}`);
+    console.log(
+      `EnvironmentGPU initialized with width: ${width}, height: ${height}`,
+    );
   }
 
   /**
@@ -30,9 +32,11 @@ export class EnvironmentGPU {
     const cols = Math.ceil(this.width / config.ENV_GRID_CELL_SIZE);
     const rows = Math.ceil(this.height / config.ENV_GRID_CELL_SIZE);
     this.nutrientGrid = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => config.BASE_NUTRIENT)
+      Array.from({ length: rows }, () => config.BASE_NUTRIENT),
     );
-    console.log(`Nutrient grid initialized with ${cols} columns and ${rows} rows.`);
+    console.log(
+      `Nutrient grid initialized with ${cols} columns and ${rows} rows.`,
+    );
   }
 
   /**
@@ -55,10 +59,14 @@ export class EnvironmentGPU {
       const available = this.nutrientGrid[gridX][gridY];
       const consumed = Math.min(amount, available);
       this.nutrientGrid[gridX][gridY] -= consumed;
-      console.log(`Consumed ${consumed} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Remaining: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+      console.log(
+        `Consumed ${consumed} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Remaining: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`,
+      );
       return consumed;
     } else {
-      console.warn(`Hypha tip at (${x.toFixed(2)}, ${y.toFixed(2)}) is out of nutrient grid bounds.`);
+      console.warn(
+        `Hypha tip at (${x.toFixed(2)}, ${y.toFixed(2)}) is out of nutrient grid bounds.`,
+      );
       return 0;
     }
   }
@@ -80,9 +88,13 @@ export class EnvironmentGPU {
       gridY < this.nutrientGrid[0].length
     ) {
       this.nutrientGrid[gridX][gridY] += amount;
-      console.log(`Added ${amount} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Total: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+      console.log(
+        `Added ${amount} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Total: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`,
+      );
     } else {
-      console.warn(`Cannot add nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}). Position is out of nutrient grid bounds.`);
+      console.warn(
+        `Cannot add nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}). Position is out of nutrient grid bounds.`,
+      );
     }
   }
 
@@ -94,7 +106,7 @@ export class EnvironmentGPU {
     const cols = this.nutrientGrid.length;
     const rows = this.nutrientGrid[0].length;
     const newGrid: number[][] = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => 0)
+      Array.from({ length: rows }, () => 0),
     );
 
     for (let x = 0; x < cols; x++) {
@@ -118,7 +130,9 @@ export class EnvironmentGPU {
         }
 
         // Calculate average and apply diffusion rate
-        newGrid[x][y] = this.nutrientGrid[x][y] + config.NUTRIENT_DIFFUSION * ((total / count) - this.nutrientGrid[x][y]);
+        newGrid[x][y] =
+          this.nutrientGrid[x][y] +
+          config.NUTRIENT_DIFFUSION * (total / count - this.nutrientGrid[x][y]);
       }
     }
 
@@ -132,7 +146,8 @@ export class EnvironmentGPU {
    */
   public replenishNutrients() {
     // Example: Replenish nutrients in random locations
-    for (let i = 0; i < 10; i++) { // Number of replenishment pockets
+    for (let i = 0; i < 10; i++) {
+      // Number of replenishment pockets
       const x = Math.random() * this.width;
       const y = Math.random() * this.height;
       this.addNutrient(x, y, config.REPLENISHMENT_AMOUNT);
@@ -155,7 +170,7 @@ export class EnvironmentGPU {
             x * config.ENV_GRID_CELL_SIZE,
             y * config.ENV_GRID_CELL_SIZE,
             config.ENV_GRID_CELL_SIZE,
-            config.ENV_GRID_CELL_SIZE
+            config.ENV_GRID_CELL_SIZE,
           );
         }
       }
@@ -181,13 +196,13 @@ export class EnvironmentGPU {
           const x = col * cellWidth + cellWidth / 2;
           const y = row * cellHeight + cellHeight / 2;
 
-          ctx.fillStyle = 'green';
+          ctx.fillStyle = "green";
           ctx.beginPath();
           ctx.arc(x, y, Math.min(cellWidth, cellHeight) / 4, 0, Math.PI * 2);
           ctx.fill();
 
           // Draw the apple stem
-          ctx.strokeStyle = 'brown';
+          ctx.strokeStyle = "brown";
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(x, y - Math.min(cellWidth, cellHeight) / 4);
