@@ -162,4 +162,39 @@ export class EnvironmentGPU {
     }
     console.log(`Nutrient grid drawn on canvas.`);
   }
+
+  /**
+   * Renders the nutrient packets as little green apples on the canvas.
+   * @param ctx - The 2D rendering context of the main canvas.
+   */
+  public renderNutrientPackets(ctx: CanvasRenderingContext2D) {
+    const cols = this.nutrientGrid[0].length;
+    const rows = this.nutrientGrid.length;
+
+    const cellWidth = this.width / cols;
+    const cellHeight = this.height / rows;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (this.nutrientGrid[row][col] > 0) {
+          // Draw a green apple at the center of each cell with nutrients
+          const x = col * cellWidth + cellWidth / 2;
+          const y = row * cellHeight + cellHeight / 2;
+
+          ctx.fillStyle = 'green';
+          ctx.beginPath();
+          ctx.arc(x, y, Math.min(cellWidth, cellHeight) / 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Draw the apple stem
+          ctx.strokeStyle = 'brown';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y - Math.min(cellWidth, cellHeight) / 4);
+          ctx.lineTo(x, y - Math.min(cellWidth, cellHeight) / 2);
+          ctx.stroke();
+        }
+      }
+    }
+  }
 }
