@@ -135,13 +135,13 @@ const initGUI = () => {
   // Canvas & Growth Parameters
   const growthFolder = gui.addFolder('Growth Parameters');
   growthFolder.add(config, 'GROWTH_RADIUS_FACTOR', 0.0, 1.0).step(0.01).name('Growth Radius Factor').onChange(resetSimulation);
-  growthFolder.add(config, 'MAIN_BRANCH_COUNT', 1, 100).step(1).name('Main Branch Count').onChange(resetSimulation);
+  growthFolder.add(config, 'MAIN_BRANCH_COUNT', 1, 1000).step(1).name('Main Branch Count').onChange(resetSimulation);
   growthFolder.add(config, 'STEP_SIZE', 0, 5).step(0.1).name('Step Size').onChange(resetSimulation);
   growthFolder.add(config, 'GROWTH_SPEED_MULTIPLIER', 0.0, 1.0).step(0.1).name('Growth Speed').onChange(resetSimulation);
   growthFolder.add(config, 'BASE_LIFE', 0, 5000).step(100).name('Base Life').onChange(resetSimulation);
   growthFolder.add(config, 'BRANCH_DECAY', 0.00, 1.00).step(0.05).name('Branch Decay').onChange(resetSimulation);
   growthFolder.add(config, 'BRANCH_CHANCE', 0.00, 1.00).step(0.01).name('Branch Chance').onChange(resetSimulation);
-  growthFolder.add(config, 'MAX_BRANCH_DEPTH', 0, 1000).step(1).name('Max Branch Depth').onChange(resetSimulation);
+  growthFolder.add(config, 'MAX_BRANCH_DEPTH', 0, 10000).step(1).name('Max Branch Depth').onChange(resetSimulation);
   growthFolder.add(config, 'ANGLE_DRIFT_STRENGTH', 0.0, 0.2).step(0.01).name('Angle Drift').onChange(resetSimulation);
   growthFolder.add(config, 'WIGGLE_STRENGTH', 0.0, 1.0).step(0.05).name('Wiggle Strength').onChange(resetSimulation);
   growthFolder.add(config, 'PERLIN_SCALE', 0.01, 0.2).step(0.01).name('Perlin Scale').onChange(resetSimulation);

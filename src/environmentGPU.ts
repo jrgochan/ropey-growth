@@ -20,19 +20,23 @@ export class EnvironmentGPU {
     this.width = width;
     this.height = height;
     this.initializeNutrientGrid();
-    console.log(`EnvironmentGPU initialized with width: ${width}, height: ${height}`);
+    if (config.DEBUG) {
+      console.log(`EnvironmentGPU initialized with width: ${width}, height: ${height}`);
+    }
   }
 
   /**
    * Initializes the nutrient grid with base nutrient levels.
    */
-  private initializeNutrientGrid() {
+  private initializeNutrientGrid(): void {
     const cols = Math.ceil(this.width / config.ENV_GRID_CELL_SIZE);
     const rows = Math.ceil(this.height / config.ENV_GRID_CELL_SIZE);
     this.nutrientGrid = Array.from({ length: cols }, () =>
       Array.from({ length: rows }, () => config.BASE_NUTRIENT)
     );
-    console.log(`Nutrient grid initialized with ${cols} columns and ${rows} rows.`);
+    if (config.DEBUG) {
+      console.log(`Nutrient grid initialized with ${cols} columns and ${rows} rows.`);
+    }
   }
 
   /**
@@ -55,10 +59,14 @@ export class EnvironmentGPU {
       const available = this.nutrientGrid[gridX][gridY];
       const consumed = Math.min(amount, available);
       this.nutrientGrid[gridX][gridY] -= consumed;
-      console.log(`Consumed ${consumed} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Remaining: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+      if (config.DEBUG) {
+        console.log(`Consumed ${consumed} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Remaining: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+      }
       return consumed;
     } else {
-      console.warn(`Hypha tip at (${x.toFixed(2)}, ${y.toFixed(2)}) is out of nutrient grid bounds.`);
+      if (config.DEBUG) {
+        console.warn(`Hypha tip at (${x.toFixed(2)}, ${y.toFixed(2)}) is out of nutrient grid bounds.`);
+      }
       return 0;
     }
   }
@@ -69,7 +77,7 @@ export class EnvironmentGPU {
    * @param y - Y-coordinate where nutrients are added.
    * @param amount - Amount of nutrient to add.
    */
-  public addNutrient(x: number, y: number, amount: number) {
+  public addNutrient(x: number, y: number, amount: number): void {
     const gridX = Math.floor(x / config.ENV_GRID_CELL_SIZE);
     const gridY = Math.floor(y / config.ENV_GRID_CELL_SIZE);
 
@@ -80,9 +88,13 @@ export class EnvironmentGPU {
       gridY < this.nutrientGrid[0].length
     ) {
       this.nutrientGrid[gridX][gridY] += amount;
-      console.log(`Added ${amount} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Total: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+      if (config.DEBUG) {
+        console.log(`Added ${amount} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Total: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`);
+      }
     } else {
-      console.warn(`Cannot add nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}). Position is out of nutrient grid bounds.`);
+      if (config.DEBUG) {
+        console.warn(`Cannot add nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}). Position is out of nutrient grid bounds.`);
+      }
     }
   }
 
@@ -90,7 +102,7 @@ export class EnvironmentGPU {
    * Handles nutrient diffusion across the grid.
    * This method should be called periodically to simulate nutrient spread.
    */
-  public diffuseNutrients() {
+  public diffuseNutrients(): void {
     const cols = this.nutrientGrid.length;
     const rows = this.nutrientGrid[0].length;
     const newGrid: number[][] = Array.from({ length: cols }, () =>
@@ -123,21 +135,25 @@ export class EnvironmentGPU {
     }
 
     this.nutrientGrid = newGrid;
-    console.log(`Nutrients diffused across the grid.`);
+    if (config.DEBUG) {
+      console.log(`Nutrients diffused across the grid.`);
+    }
   }
 
   /**
    * Handles periodic replenishment of nutrients.
    * This method should be scheduled to run at intervals defined in config.
    */
-  public replenishNutrients() {
+  public replenishNutrients(): void {
     // Example: Replenish nutrients in random locations
     for (let i = 0; i < 10; i++) { // Number of replenishment pockets
       const x = Math.random() * this.width;
       const y = Math.random() * this.height;
       this.addNutrient(x, y, config.REPLENISHMENT_AMOUNT);
     }
-    console.log(`Nutrients replenished.`);
+    if (config.DEBUG) {
+      console.log(`Nutrients replenished.`);
+    }
   }
 
   /**
@@ -145,7 +161,7 @@ export class EnvironmentGPU {
    * This is optional and can be used for debugging purposes.
    * @param ctx - Canvas rendering context.
    */
-  public drawNutrientGrid(ctx: CanvasRenderingContext2D) {
+  public drawNutrientGrid(ctx: CanvasRenderingContext2D): void {
     for (let x = 0; x < this.nutrientGrid.length; x++) {
       for (let y = 0; y < this.nutrientGrid[0].length; y++) {
         const nutrient = this.nutrientGrid[x][y];
@@ -160,6 +176,8 @@ export class EnvironmentGPU {
         }
       }
     }
-    console.log(`Nutrient grid drawn on canvas.`);
+    if (config.DEBUG) {
+      console.log(`Nutrient grid drawn on canvas.`);
+    }
   }
 }

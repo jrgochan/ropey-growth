@@ -49,7 +49,8 @@ export interface Config {
     ANASTOMOSIS_RADIUS: number;
   }
 
-export const config = {
+// Explicitly typed config constant
+export const config: Config = {
     // -----------------------------
     // Canvas & Growth Parameters
     // -----------------------------
@@ -132,6 +133,6 @@ export const config = {
     // -----------------------------
     // Miscellaneous Parameters
     // -----------------------------
-    ANASTOMOSIS_RADIUS: 0.25,       // Radius within which tips fuse
+    ANASTOMOSIS_RADIUS: 0.05,       // Radius within which tips fuse
   };
   

@@ -6,6 +6,8 @@
  * Manages the mycelial network graph, handling resource flows.
  */
 
+import { config } from './constants.js';
+
 interface Node {
     id: number;
     x: number;
@@ -57,28 +59,29 @@ interface Node {
      */
     public flowResources(): void {
       const resourceChanges: Map<number, number> = new Map();
-  
+
       this.nodes.forEach((node, id) => {
         node.connections.forEach(connId => {
           const connectedNode = this.nodes.get(connId);
           if (connectedNode) {
-            if (node.resource > connectedNode.resource + 10) { // Threshold to prevent minimal flows
-              const flow = (node.resource - connectedNode.resource) * RESOURCE_FLOW_RATE;
+            // Only allow resource flow when difference exceeds threshold
+            if (node.resource > connectedNode.resource + 10) { 
+              // Calculate flow based on resource difference and configured flow rate
+              const flow = (node.resource - connectedNode.resource) * config.RESOURCE_FLOW_RATE;
               resourceChanges.set(id, (resourceChanges.get(id) || 0) - flow);
               resourceChanges.set(connId, (resourceChanges.get(connId) || 0) + flow);
             }
           }
         });
       });
-  
-      // Apply resource changes
+
+      // Apply the calculated resource changes to each node
       resourceChanges.forEach((change, id) => {
         const node = this.nodes.get(id);
         if (node) {
           node.resource += change;
-          // Clamp resource to non-negative values
+          // Ensure that the resource value does not go negative or exceed maximum
           if (node.resource < 0) node.resource = 0;
-          // Optionally, set a maximum resource limit
           if (node.resource > 1000) node.resource = 1000;
         }
       });

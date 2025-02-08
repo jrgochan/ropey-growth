@@ -6,7 +6,8 @@ export class Perlin {
   private perm: Uint8Array;
   private p: Uint8Array;
 
-  constructor() {
+  // Constructor initializes the permutation arrays
+  constructor(): void {
     this.p = new Uint8Array(256);
     this.perm = new Uint8Array(512);
 
@@ -21,20 +22,23 @@ export class Perlin {
       this.p[i] = this.p[r];
       this.p[r] = tmp;
     }
-    // Extend
+    // Extend the permutation array
     for (let i = 0; i < 512; i++) {
       this.perm[i] = this.p[i & 255];
     }
   }
 
+  // Fade function: smooth transition
   private fade(t: number): number {
     return ((6 * t - 15) * t + 10) * t * t * t;
   }
 
+  // Linear interpolation between a and b
   private lerp(a: number, b: number, t: number): number {
     return a + t * (b - a);
   }
 
+  // Gradient function calculates noise contribution
   private grad(hash: number, x: number, y: number): number {
     switch (hash & 3) {
       case 0: return x + y;
@@ -45,6 +49,7 @@ export class Perlin {
     }
   }
 
+  // Generates 2D Perlin noise for coordinates (x, y)
   public noise2D(x: number, y: number): number {
     const X = Math.floor(x) & 255;
     const Y = Math.floor(y) & 255;
