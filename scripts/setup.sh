@@ -55,9 +55,13 @@ print_message "Installing Python dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
+print_message "Installing Ubuntu dependencies..."
+sudo apt-get install libxi-dev libx11-dev libxext-dev
+
 # 5. Install Node.js dependencies
 print_message "Installing Node.js dependencies..."
 npm i
+
 
 print_message "Setup complete! Python virtual environment and Node.js environment are ready."
 
