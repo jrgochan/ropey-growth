@@ -37,8 +37,9 @@ describe('Perlin', () => {
   it('should generate different values at different coordinates', () => {
     const perlin = new Perlin();
     
-    const noise1 = perlin.noise2D(10, 10);
-    const noise2 = perlin.noise2D(20, 20);
+    // Use coordinates that are far apart to ensure different values
+    const noise1 = perlin.noise2D(10.5, 10.5);
+    const noise2 = perlin.noise2D(50.5, 50.5);
     
     // Different coordinates should generally produce different noise values
     expect(noise1).not.toEqual(noise2);

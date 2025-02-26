@@ -72,7 +72,12 @@ describe('GrowthManager', () => {
     
     // Should create as many nodes as MAIN_BRANCH_COUNT
     expect(createNodeSpy).toHaveBeenCalledTimes(config.MAIN_BRANCH_COUNT);
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Initialized main tip'));
+    // Check if any of the console.log calls contain the expected string
+    const logCalls = (console.log as any).mock.calls;
+    const hasInitializedTipLog = logCalls.some(
+      (call: any[]) => typeof call[0] === 'string' && call[0].match(/Initialized main tip \d+:/)
+    );
+    expect(hasInitializedTipLog).toBe(true);
   });
 
   it('should update and draw correctly', () => {

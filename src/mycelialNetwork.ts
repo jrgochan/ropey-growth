@@ -64,8 +64,8 @@ export class MycelialNetwork {
       node.connections.forEach((connId) => {
         const connectedNode = this.nodes.get(connId);
         if (connectedNode) {
-          if (node.resource > connectedNode.resource + 10) {
-            // Threshold to prevent minimal flows
+          if (node.resource > connectedNode.resource + 5) {
+            // Threshold to prevent minimal flows (5 units minimum difference)
             const flow =
               (node.resource - connectedNode.resource) * config.RESOURCE_FLOW_RATE;
             resourceChanges.set(id, (resourceChanges.get(id) || 0) - flow);

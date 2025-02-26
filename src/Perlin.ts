@@ -36,17 +36,20 @@ export class Perlin {
   }
 
   private grad(hash: number, x: number, y: number): number {
-    switch (hash & 3) {
-      case 0:
-        return x + y;
-      case 1:
-        return -x + y;
-      case 2:
-        return x - y;
-      case 3:
-        return -x - y;
-      default:
-        return 0;
+    // Use more bits from the hash to increase variation
+    const h = hash & 15;
+    
+    // Use different gradient vectors based on hash
+    switch (h & 7) {
+      case 0: return x + y;
+      case 1: return -x + y;
+      case 2: return x - y;
+      case 3: return -x - y;
+      case 4: return x + y * 0.5;
+      case 5: return -x * 0.5 + y;
+      case 6: return x * 0.5 - y;
+      case 7: return -x - y * 0.5;
+      default: return 0; // Should never happen
     }
   }
 
