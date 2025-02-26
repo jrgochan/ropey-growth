@@ -1,6 +1,6 @@
 // src/environmentGPU.ts
 
-import { config } from './constants.js'; // Import the config object
+import { config } from "./constants.js"; // Import the config object
 
 /**
  * EnvironmentGPU class manages the environmental resources
@@ -32,7 +32,10 @@ export class EnvironmentGPU {
     const cols = Math.ceil(this.width / config.ENV_GRID_CELL_SIZE);
     const rows = Math.ceil(this.height / config.ENV_GRID_CELL_SIZE);
     this.nutrientGrid = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => config.BASE_NUTRIENT)
+      Array.from({ length: rows }, () => config.BASE_NUTRIENT),
+    );
+    console.log(
+      `Nutrient grid initialized with ${cols} columns and ${rows} rows.`,
     );
     if (config.DEBUG) {
       console.log(`Nutrient grid initialized with ${cols} columns and ${rows} rows.`);
@@ -106,7 +109,7 @@ export class EnvironmentGPU {
     const cols = this.nutrientGrid.length;
     const rows = this.nutrientGrid[0].length;
     const newGrid: number[][] = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => 0)
+      Array.from({ length: rows }, () => 0),
     );
 
     for (let x = 0; x < cols; x++) {
@@ -130,7 +133,9 @@ export class EnvironmentGPU {
         }
 
         // Calculate average and apply diffusion rate
-        newGrid[x][y] = this.nutrientGrid[x][y] + config.NUTRIENT_DIFFUSION * ((total / count) - this.nutrientGrid[x][y]);
+        newGrid[x][y] =
+          this.nutrientGrid[x][y] +
+          config.NUTRIENT_DIFFUSION * (total / count - this.nutrientGrid[x][y]);
       }
     }
 
@@ -146,7 +151,8 @@ export class EnvironmentGPU {
    */
   public replenishNutrients(): void {
     // Example: Replenish nutrients in random locations
-    for (let i = 0; i < 10; i++) { // Number of replenishment pockets
+    for (let i = 0; i < 10; i++) {
+      // Number of replenishment pockets
       const x = Math.random() * this.width;
       const y = Math.random() * this.height;
       this.addNutrient(x, y, config.REPLENISHMENT_AMOUNT);
@@ -171,13 +177,48 @@ export class EnvironmentGPU {
             x * config.ENV_GRID_CELL_SIZE,
             y * config.ENV_GRID_CELL_SIZE,
             config.ENV_GRID_CELL_SIZE,
-            config.ENV_GRID_CELL_SIZE
+            config.ENV_GRID_CELL_SIZE,
           );
         }
       }
     }
     if (config.DEBUG) {
       console.log(`Nutrient grid drawn on canvas.`);
+    }
+  }
+
+  /**
+   * Renders the nutrient packets as little green apples on the canvas.
+   * @param ctx - The 2D rendering context of the main canvas.
+   */
+  public renderNutrientPackets(ctx: CanvasRenderingContext2D) {
+    const cols = this.nutrientGrid[0].length;
+    const rows = this.nutrientGrid.length;
+
+    const cellWidth = this.width / cols;
+    const cellHeight = this.height / rows;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (this.nutrientGrid[row][col] > 0) {
+          // Draw a green apple at the center of each cell with nutrients
+          const x = col * cellWidth + cellWidth / 2;
+          const y = row * cellHeight + cellHeight / 2;
+
+          ctx.fillStyle = "green";
+          ctx.beginPath();
+          ctx.arc(x, y, Math.min(cellWidth, cellHeight) / 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Draw the apple stem
+          ctx.strokeStyle = "brown";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y - Math.min(cellWidth, cellHeight) / 4);
+          ctx.lineTo(x, y - Math.min(cellWidth, cellHeight) / 2);
+          ctx.stroke();
+        }
+      }
     }
   }
 }

@@ -9,48 +9,47 @@
 import { config } from './constants.js';
 
 interface Node {
-    id: number;
-    x: number;
-    y: number;
-    resource: number;
-    connections: number[]; // IDs of connected nodes
+  id: number;
+  x: number;
+  y: number;
+  resource: number;
+  connections: number[]; // IDs of connected nodes
+}
+
+export class MycelialNetwork {
+  private nodes: Map<number, Node> = new Map();
+  private nextId: number = 0;
+
+  /**
+   * Creates a new node in the network.
+   * @param x - X-coordinate of the node.
+   * @param y - Y-coordinate of the node.
+   * @param resource - Initial resource of the node.
+   * @returns The unique ID of the created node.
+   */
+  public createNode(x: number, y: number, resource: number): number {
+    const id = this.nextId++;
+    this.nodes.set(id, {
+      id,
+      x,
+      y,
+      resource,
+      connections: [],
+    });
+    return id;
   }
-  
-  export class MycelialNetwork {
-    private nodes: Map<number, Node> = new Map();
-    private nextId: number = 0;
-  
-    /**
-     * Creates a new node in the network.
-     * @param x - X-coordinate of the node.
-     * @param y - Y-coordinate of the node.
-     * @param resource - Initial resource of the node.
-     * @returns The unique ID of the created node.
-     */
-    public createNode(x: number, y: number, resource: number): number {
-      const id = this.nextId++;
-      this.nodes.set(id, {
-        id,
-        x,
-        y,
-        resource,
-        connections: []
-      });
-      return id;
-    }
-  
-    /**
-     * Connects two nodes in the network.
-     * @param fromId - ID of the first node.
-     * @param toId - ID of the second node.
-     */
-    public connectNodes(fromId: number, toId: number): void {
-      const fromNode = this.nodes.get(fromId);
-      const toNode = this.nodes.get(toId);
-      if (fromNode && toNode) {
-        fromNode.connections.push(toId);
-        toNode.connections.push(fromId);
-      }
+
+  /**
+   * Connects two nodes in the network.
+   * @param fromId - ID of the first node.
+   * @param toId - ID of the second node.
+   */
+  public connectNodes(fromId: number, toId: number): void {
+    const fromNode = this.nodes.get(fromId);
+    const toNode = this.nodes.get(toId);
+    if (fromNode && toNode) {
+      fromNode.connections.push(toId);
+      toNode.connections.push(fromId);
     }
   
     /**
@@ -85,24 +84,36 @@ interface Node {
           if (node.resource > 1000) node.resource = 1000;
         }
       });
-    }
-  
-    /**
-     * Retrieves the resource level of a specific node.
-     * @param id - ID of the node.
-     * @returns The resource level of the node.
-     */
-    public getResource(id: number): number {
+    });
+
+    // Apply resource changes
+    resourceChanges.forEach((change, id) => {
       const node = this.nodes.get(id);
-      return node ? node.resource : 0;
-    }
-  
-    /**
-     * Resets the network by clearing all nodes and connections.
-     */
-    public resetNetwork(): void {
-      this.nodes.clear();
-      this.nextId = 0;
-    }
+      if (node) {
+        node.resource += change;
+        // Clamp resource to non-negative values
+        if (node.resource < 0) node.resource = 0;
+        // Optionally, set a maximum resource limit
+        if (node.resource > 1000) node.resource = 1000;
+      }
+    });
   }
-  
+
+  /**
+   * Retrieves the resource level of a specific node.
+   * @param id - ID of the node.
+   * @returns The resource level of the node.
+   */
+  public getResource(id: number): number {
+    const node = this.nodes.get(id);
+    return node ? node.resource : 0;
+  }
+
+  /**
+   * Resets the network by clearing all nodes and connections.
+   */
+  public resetNetwork(): void {
+    this.nodes.clear();
+    this.nextId = 0;
+  }
+}

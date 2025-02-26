@@ -8,46 +8,46 @@
  */
 
 export interface Config {
-    // Define all properties with their types
-    GROWTH_RADIUS_FACTOR: number;
-    MAIN_BRANCH_COUNT: number;
-    STEP_SIZE: number;
-    GROWTH_SPEED_MULTIPLIER: number;
-    BASE_LIFE: number;
-    BRANCH_DECAY: number;
-    BRANCH_CHANCE: number;
-    MAX_BRANCH_DEPTH: number;
-    ANGLE_DRIFT_STRENGTH: number;
-    WIGGLE_STRENGTH: number;
-    PERLIN_SCALE: number;
-    ENV_GRID_CELL_SIZE: number;
-    BASE_NUTRIENT: number;
-    NUTRIENT_DIFFUSION: number;
-    NUTRIENT_CONSUMPTION_RATE: number;
-    NUTRIENT_POCKET_RADIUS: number;
-    NUTRIENT_POCKET_AMOUNT: number;
-    NUTRIENT_POCKET_DECAY_RATE: number;
-    REPLENISHMENT_INTERVAL: number;
-    REPLENISHMENT_AMOUNT: number;
-    INITIAL_RESOURCE_PER_TIP: number;
-    RESOURCE_FLOW_RATE: number;
-    TIME_LAPSE_FACTOR: number;
-    SECONDARY_FAN_COUNT: number;
-    WIDER_SECONDARY_ANGLE: number;
-    BACKGROUND_ALPHA: number;
-    FADE_START_FACTOR: number;
-    FADE_END_FACTOR: number;
-    SHADOW_BLUR: number;
-    SHADOW_COLOR: string;
-    MAIN_LINE_WIDTH: number;
-    SECONDARY_LINE_WIDTH: number;
-    MAIN_ALPHA: number;
-    SECONDARY_ALPHA: number;
-    BASE_HUE: number;
-    BASE_LIGHTNESS: number;
-    LIGHTNESS_STEP: number;
-    ANASTOMOSIS_RADIUS: number;
-  }
+  // Define all properties with their types
+  GROWTH_RADIUS_FACTOR: number;
+  MAIN_BRANCH_COUNT: number;
+  STEP_SIZE: number;
+  GROWTH_SPEED_MULTIPLIER: number;
+  BASE_LIFE: number;
+  BRANCH_DECAY: number;
+  BRANCH_CHANCE: number;
+  MAX_BRANCH_DEPTH: number;
+  ANGLE_DRIFT_STRENGTH: number;
+  WIGGLE_STRENGTH: number;
+  PERLIN_SCALE: number;
+  ENV_GRID_CELL_SIZE: number;
+  BASE_NUTRIENT: number;
+  NUTRIENT_DIFFUSION: number;
+  NUTRIENT_CONSUMPTION_RATE: number;
+  NUTRIENT_POCKET_RADIUS: number;
+  NUTRIENT_POCKET_AMOUNT: number;
+  NUTRIENT_POCKET_DECAY_RATE: number;
+  REPLENISHMENT_INTERVAL: number;
+  REPLENISHMENT_AMOUNT: number;
+  INITIAL_RESOURCE_PER_TIP: number;
+  RESOURCE_FLOW_RATE: number;
+  TIME_LAPSE_FACTOR: number;
+  SECONDARY_FAN_COUNT: number;
+  WIDER_SECONDARY_ANGLE: number;
+  BACKGROUND_ALPHA: number;
+  FADE_START_FACTOR: number;
+  FADE_END_FACTOR: number;
+  SHADOW_BLUR: number;
+  SHADOW_COLOR: string;
+  MAIN_LINE_WIDTH: number;
+  SECONDARY_LINE_WIDTH: number;
+  MAIN_ALPHA: number;
+  SECONDARY_ALPHA: number;
+  BASE_HUE: number;
+  BASE_LIGHTNESS: number;
+  LIGHTNESS_STEP: number;
+  ANASTOMOSIS_RADIUS: number;
+}
 
 // Explicitly typed config constant
 export const config: Config = {
@@ -135,4 +135,3 @@ export const config: Config = {
     // -----------------------------
     ANASTOMOSIS_RADIUS: 0.05,       // Radius within which tips fuse
   };
-  

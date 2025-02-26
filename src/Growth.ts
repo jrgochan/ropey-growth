@@ -1,9 +1,7 @@
 // src/growth.ts
 
 import { Perlin } from "./Perlin.js";
-import { 
-  config
-} from "./constants.js"; // Import the config object
+import { config } from "./constants.js"; // Import the config object
 
 import { EnvironmentGPU } from "./environmentGPU.js";
 import { MycelialNetwork } from "./mycelialNetwork.js";
@@ -46,10 +44,12 @@ export class GrowthManager {
     private centerY: number,
     private perlin: Perlin,
     private envGPU: EnvironmentGPU,
-    private network: MycelialNetwork // Injecting the network for resource flow
+    private network: MycelialNetwork, // Injecting the network for resource flow
   ) {
     this.growthRadius = Math.min(width, height) * config.GROWTH_RADIUS_FACTOR;
-    console.log(`GrowthManager initialized with growthRadius: ${this.growthRadius}`);
+    console.log(
+      `GrowthManager initialized with growthRadius: ${this.growthRadius}`,
+    );
   }
 
   /**
@@ -70,7 +70,7 @@ export class GrowthManager {
         life: config.BASE_LIFE,
         depth: 0,
         growthType: "main",
-        resource: config.INITIAL_RESOURCE_PER_TIP
+        resource: config.INITIAL_RESOURCE_PER_TIP,
       };
       this.tips.push(newTip);
       console.log(`Initialized main tip ${i + 1}:`, newTip);
@@ -113,12 +113,16 @@ export class GrowthManager {
       // Consume nutrient from the environment
       const consumed: number = this.envGPU.consumeResource(tip.x, tip.y, config.NUTRIENT_CONSUMPTION_RATE);
       tip.resource -= consumed;
-      console.log(`Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) consumed ${consumed} resources. Remaining: ${tip.resource.toFixed(2)}`);
+      console.log(
+        `Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) consumed ${consumed} resources. Remaining: ${tip.resource.toFixed(2)}`,
+      );
 
       // If resource is depleted, the tip dies
       if (tip.resource <= 0) {
         tip.life = 0;
-        console.log(`Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has died due to resource depletion.`);
+        console.log(
+          `Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has died due to resource depletion.`,
+        );
         continue;
       }
 
@@ -145,7 +149,9 @@ export class GrowthManager {
       const dist: number = Math.hypot(tip.x - this.centerX, tip.y - this.centerY);
       if (dist > this.growthRadius) {
         tip.life = 0;
-        console.log(`Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has exceeded growth radius.`);
+        console.log(
+          `Tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}) has exceeded growth radius.`,
+        );
         continue;
       }
 
@@ -176,7 +182,9 @@ export class GrowthManager {
             resource: config.INITIAL_RESOURCE_PER_TIP * 0.8
           };
           newTips.push(newTip);
-          console.log(`Spawned new secondary tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}) with angle ${newTip.angle.toFixed(2)}.`);
+          console.log(
+            `Spawned new secondary tip at (${newTip.x.toFixed(2)}, ${newTip.y.toFixed(2)}) with angle ${newTip.angle.toFixed(2)}.`,
+          );
         }
       }
     }
@@ -236,15 +244,15 @@ export class GrowthManager {
     if (type === "main") {
       lineWidth = config.MAIN_LINE_WIDTH;
       alpha = config.MAIN_ALPHA;
-      hue = config.BASE_HUE;               // 0
-      saturation = 0;                       // 0% for white
-      lightness = calculatedLightness;      // Dynamic lightness based on depth
+      hue = config.BASE_HUE; // 0
+      saturation = 0; // 0% for white
+      lightness = calculatedLightness; // Dynamic lightness based on depth
     } else {
       lineWidth = config.SECONDARY_LINE_WIDTH;
       alpha = config.SECONDARY_ALPHA;
-      hue = config.BASE_HUE;               // 0
-      saturation = 0;                       // 0% for white
-      lightness = calculatedLightness;      // Dynamic lightness based on depth
+      hue = config.BASE_HUE; // 0
+      saturation = 0; // 0% for white
+      lightness = calculatedLightness; // Dynamic lightness based on depth
     }
     console.log(`Drawing segment: (${oldX}, ${oldY}) -> (${newX}, ${newY})`);
 
@@ -261,7 +269,9 @@ export class GrowthManager {
     this.ctx.moveTo(oldX, oldY);
     this.ctx.lineTo(newX, newY);
     this.ctx.stroke();
-    console.log(`Drew ${type} segment from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${newX.toFixed(2)}, ${newY.toFixed(2)}), Lightness: ${lightness}%`);
+    console.log(
+      `Drew ${type} segment from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${newX.toFixed(2)}, ${newY.toFixed(2)}), Lightness: ${lightness}%`,
+    );
 
     // Reset shadow to prevent it from affecting other drawings
     this.ctx.shadowBlur = 0;
@@ -277,8 +287,10 @@ export class GrowthManager {
     const radius: number = 2;
     this.ctx.beginPath();
     this.ctx.arc(tip.x, tip.y, radius, 0, Math.PI * 2);
-    this.ctx.fillStyle = 'white'; // Bright color for visibility
+    this.ctx.fillStyle = "white"; // Bright color for visibility
     this.ctx.fill();
-    console.log(`Drew hyphal tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}).`);
+    console.log(
+      `Drew hyphal tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)}).`,
+    );
   }
 }
