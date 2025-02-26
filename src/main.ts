@@ -8,7 +8,7 @@ import { Perlin } from "./Perlin.js";
 import * as dat from "dat.gui";
 
 const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
-const ctx = canvas?.getContext("2d");
+const ctx = canvas.getContext("2d");
 if (!ctx) {
   console.error("Failed to get 2D rendering context.");
   throw new Error("Canvas context is null.");
@@ -34,7 +34,7 @@ function resetSimulation() {
 
   // Reset growth manager with updated configuration
   growth = new GrowthManager(
-    ctx,
+    ctx as CanvasRenderingContext2D,
     canvas.width,
     canvas.height,
     canvas.width / 2,
@@ -71,7 +71,7 @@ const setup = () => {
 
   // Initialize growth manager
   growth = new GrowthManager(
-    ctx,
+    ctx as CanvasRenderingContext2D,
     canvas.width,
     canvas.height,
     canvas.width / 2,
@@ -89,7 +89,7 @@ const setup = () => {
  * Animation loop to update and render the simulation.
  */
 const animate = () => {
-  growth.updateAndDraw();
+  growth.updateAndDraw(Date.now());
   requestAnimationFrame(animate);
 };
 
@@ -202,7 +202,7 @@ const initGUI = () => {
     .name("Base Nutrient")
     .onChange(resetSimulation);
   envFolder
-    .add(config, "NUTRIENT_DIFFUSION", 0.0, 0.5)
+    .add(config, "NUTRIENT_DIFFUSION", 0.0, 1.0)
     .step(0.05)
     .name("Nutrient Diffusion")
     .onChange(resetSimulation);
@@ -240,7 +240,7 @@ const initGUI = () => {
     .name("Initial Resource per Tip")
     .onChange(resetSimulation);
   networkFolder
-    .add(config, "RESOURCE_FLOW_RATE", 0.5, 2.0)
+    .add(config, "RESOURCE_FLOW_RATE", 0.5, 5.0)
     .step(0.1)
     .name("Resource Flow Rate")
     .onChange(resetSimulation);
@@ -328,6 +328,11 @@ const initGUI = () => {
     .add(config, "BASE_LIGHTNESS", 50, 100)
     .step(1)
     .name("Base Lightness")
+    .onChange(resetSimulation);
+  colorFolder
+    .add(config, "NUTRIENT_HUE", 0, 360)
+    .step(1)
+    .name("Nutrient Color")
     .onChange(resetSimulation);
   colorFolder
     .add(config, "LIGHTNESS_STEP", 1, 10)

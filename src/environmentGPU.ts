@@ -10,6 +10,8 @@ export class EnvironmentGPU {
   private width: number;
   private height: number;
   private nutrientGrid: number[][] = [];
+  // For optimization, we'll track which grid cells need diffusion
+  private activeCells: Set<string> = new Set();
 
   /**
    * Constructor initializes the nutrient grid based on canvas dimensions.
@@ -20,9 +22,7 @@ export class EnvironmentGPU {
     this.width = width;
     this.height = height;
     this.initializeNutrientGrid();
-    console.log(
-      `EnvironmentGPU initialized with width: ${width}, height: ${height}`,
-    );
+    console.log(`EnvironmentGPU initialized with dimensions ${width}x${height}`);
   }
 
   /**
@@ -34,9 +34,15 @@ export class EnvironmentGPU {
     this.nutrientGrid = Array.from({ length: cols }, () =>
       Array.from({ length: rows }, () => config.BASE_NUTRIENT),
     );
-    console.log(
-      `Nutrient grid initialized with ${cols} columns and ${rows} rows.`,
-    );
+    
+    // Initialize active cells with all cells that have nutrients
+    for (let x = 0; x < cols; x++) {
+      for (let y = 0; y < rows; y++) {
+        if (this.nutrientGrid[x][y] > 0) {
+          this.activeCells.add(`${x},${y}`);
+        }
+      }
+    }
   }
 
   /**
@@ -59,14 +65,16 @@ export class EnvironmentGPU {
       const available = this.nutrientGrid[gridX][gridY];
       const consumed = Math.min(amount, available);
       this.nutrientGrid[gridX][gridY] -= consumed;
-      console.log(
-        `Consumed ${consumed} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Remaining: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`,
-      );
+      
+      // Mark this cell as active for diffusion
+      if (this.nutrientGrid[gridX][gridY] > 0) {
+        this.activeCells.add(`${gridX},${gridY}`);
+      }
+      
+      console.log(`Consumed ${consumed} nutrients at position (${x}, ${y})`);
       return consumed;
     } else {
-      console.warn(
-        `Hypha tip at (${x.toFixed(2)}, ${y.toFixed(2)}) is out of nutrient grid bounds.`,
-      );
+      console.warn(`Attempted to consume nutrients out of nutrient grid bounds at (${x}, ${y})`);
       return 0;
     }
   }
@@ -88,56 +96,135 @@ export class EnvironmentGPU {
       gridY < this.nutrientGrid[0].length
     ) {
       this.nutrientGrid[gridX][gridY] += amount;
-      console.log(
-        `Added ${amount} nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}) [Grid: (${gridX}, ${gridY})]. Total: ${this.nutrientGrid[gridX][gridY].toFixed(2)}`,
-      );
+      
+      // Mark this cell as active for diffusion
+      this.activeCells.add(`${gridX},${gridY}`);
+      
+      console.log(`Added ${amount} nutrients at position (${x}, ${y})`);
     } else {
-      console.warn(
-        `Cannot add nutrients at (${x.toFixed(2)}, ${y.toFixed(2)}). Position is out of nutrient grid bounds.`,
-      );
+      console.warn(`Attempted to add nutrients out of nutrient grid bounds at (${x}, ${y})`);
     }
+  }
+
+  // Cache for neighbor calculations
+  private neighborCache: Map<string, [number, number][]> = new Map();
+  
+  /**
+   * Gets cached neighbors for a grid cell
+   * @param x - X coordinate in grid
+   * @param y - Y coordinate in grid
+   * @param cols - Total columns in grid
+   * @param rows - Total rows in grid
+   * @returns Array of valid neighbor coordinates
+   */
+  private getCachedNeighbors(x: number, y: number, cols: number, rows: number): [number, number][] {
+    const key = `${x},${y}`;
+    
+    if (!this.neighborCache.has(key)) {
+      const neighbors: [number, number][] = [];
+      const potentialNeighbors = [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1],
+      ];
+      
+      for (const [nx, ny] of potentialNeighbors) {
+        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+          neighbors.push([nx, ny]);
+        }
+      }
+      
+      this.neighborCache.set(key, neighbors);
+      
+      // Keep cache size reasonable
+      if (this.neighborCache.size > 10000) {
+        // Clear half the cache when it gets too large
+        const keys = Array.from(this.neighborCache.keys());
+        for (let i = 0; i < 5000; i++) {
+          this.neighborCache.delete(keys[i]);
+        }
+      }
+    }
+    
+    return this.neighborCache.get(key)!;
   }
 
   /**
    * Handles nutrient diffusion across the grid.
    * This method should be called periodically to simulate nutrient spread.
+   * Highly optimized to only process cells that have nutrients or are near cells with nutrients.
    */
   public diffuseNutrients() {
     const cols = this.nutrientGrid.length;
     const rows = this.nutrientGrid[0].length;
-    const newGrid: number[][] = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => 0),
-    );
-
-    for (let x = 0; x < cols; x++) {
-      for (let y = 0; y < rows; y++) {
-        let total = this.nutrientGrid[x][y];
-        let count = 1;
-
-        // Check neighboring cells
-        const neighbors = [
-          [x - 1, y],
-          [x + 1, y],
-          [x, y - 1],
-          [x, y + 1],
-        ];
-
-        for (const [nx, ny] of neighbors) {
-          if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-            total += this.nutrientGrid[nx][ny];
-            count++;
+    
+    // If no active cells, skip diffusion
+    if (this.activeCells.size === 0) {
+      return;
+    }
+    
+    console.log(`Nutrients diffused across ${this.activeCells.size} active cells`);
+    
+    // Use a sparse update approach instead of creating a full new grid
+    const updates = new Map<string, number>();
+    
+    // Process only active cells and their neighbors
+    const cellsToProcess = new Set(this.activeCells);
+    const nextActiveCells = new Set<string>();
+    
+    for (const cellKey of cellsToProcess) {
+      const [x, y] = cellKey.split(',').map(Number);
+      
+      if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
+      
+      const currentValue = this.nutrientGrid[x][y];
+      
+      // Skip cells with negligible nutrients
+      if (currentValue < 0.1) continue;
+      
+      // Get cached neighbors
+      const neighbors = this.getCachedNeighbors(x, y, cols, rows);
+      
+      let total = currentValue;
+      let count = 1;
+      
+      // Calculate diffusion with neighbors
+      for (const [nx, ny] of neighbors) {
+        total += this.nutrientGrid[nx][ny];
+        count++;
+      }
+      
+      // Calculate new value with diffusion
+      const avgValue = total / count;
+      const diffusionAmount = config.NUTRIENT_DIFFUSION * (avgValue - currentValue);
+      const newValue = currentValue + diffusionAmount;
+      
+      // Only update if the change is significant
+      if (Math.abs(diffusionAmount) > 0.01) {
+        updates.set(cellKey, newValue);
+        
+        // Mark this cell and neighbors as active for next frame if it has nutrients
+        if (newValue > 0.1) {
+          nextActiveCells.add(cellKey);
+          for (const [nx, ny] of neighbors) {
+            nextActiveCells.add(`${nx},${ny}`);
           }
         }
-
-        // Calculate average and apply diffusion rate
-        newGrid[x][y] =
-          this.nutrientGrid[x][y] +
-          config.NUTRIENT_DIFFUSION * (total / count - this.nutrientGrid[x][y]);
+      } else if (currentValue > 0.1) {
+        // Keep cells with nutrients in the active set even if they didn't change much
+        nextActiveCells.add(cellKey);
       }
     }
-
-    this.nutrientGrid = newGrid;
-    console.log(`Nutrients diffused across the grid.`);
+    
+    // Apply updates to the grid
+    for (const [key, value] of updates) {
+      const [x, y] = key.split(',').map(Number);
+      this.nutrientGrid[x][y] = value;
+    }
+    
+    // Update active cells for next frame
+    this.activeCells = nextActiveCells;
   }
 
   /**
@@ -152,7 +239,7 @@ export class EnvironmentGPU {
       const y = Math.random() * this.height;
       this.addNutrient(x, y, config.REPLENISHMENT_AMOUNT);
     }
-    console.log(`Nutrients replenished.`);
+    console.log(`Nutrients replenished in 10 random locations`);
   }
 
   /**
@@ -175,7 +262,6 @@ export class EnvironmentGPU {
         }
       }
     }
-    console.log(`Nutrient grid drawn on canvas.`);
   }
 
   /**
@@ -207,6 +293,5 @@ export class EnvironmentGPU {
     // This method is kept for compatibility with existing code
     // but no longer renders apples. The nutrient visualization
     // is now handled by making the hyphae trunks glow green.
-    console.log(`Nutrient visualization updated to glow in hyphae trunks.`);
   }
 }

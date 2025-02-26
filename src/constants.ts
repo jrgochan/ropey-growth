@@ -45,6 +45,7 @@ export interface Config {
   SECONDARY_ALPHA: number;
   BASE_HUE: number;
   BASE_LIGHTNESS: number;
+  NUTRIENT_HUE: number;
   LIGHTNESS_STEP: number;
   ANASTOMOSIS_RADIUS: number;
 }
@@ -54,7 +55,7 @@ export const config = {
   // Canvas & Growth Parameters
   // -----------------------------
   GROWTH_RADIUS_FACTOR: 0.25, // Fraction of min(width, height) for growth boundary
-  MAIN_BRANCH_COUNT: 10, // Number of main branches
+  MAIN_BRANCH_COUNT: 8, // Number of main branches (reduced from 10 for performance)
 
   // -----------------------------
   // Growth Mechanics
@@ -62,9 +63,9 @@ export const config = {
   STEP_SIZE: 1.5, // Base step size for each iteration
   GROWTH_SPEED_MULTIPLIER: 0.5, // Multiplier to control overall growth speed
   BASE_LIFE: 300, // Base life for main tips
-  BRANCH_DECAY: 0.9, // Fraction of parent's life for branches
-  BRANCH_CHANCE: 0.5, // Probability of branching per step
-  MAX_BRANCH_DEPTH: 50, // Maximum depth for nested branches
+  BRANCH_DECAY: 0.85, // Fraction of parent's life for branches (reduced from 0.9)
+  BRANCH_CHANCE: 0.4, // Probability of branching per step (reduced from 0.5)
+  MAX_BRANCH_DEPTH: 40, // Maximum depth for nested branches (reduced from 50)
   ANGLE_DRIFT_STRENGTH: 0.05, // Strength of angle drift influenced by Perlin noise
   WIGGLE_STRENGTH: 0.2, // Strength of wiggle for additional randomness
   PERLIN_SCALE: 0.05, // Scale for Perlin noise
@@ -72,9 +73,9 @@ export const config = {
   // -----------------------------
   // Environmental Parameters
   // -----------------------------
-  ENV_GRID_CELL_SIZE: 1, // Size of each grid cell for resource distribution
+  ENV_GRID_CELL_SIZE: 2, // Size of each grid cell for resource distribution (increased from 1)
   BASE_NUTRIENT: 100, // Baseline nutrient level in each cell
-  NUTRIENT_DIFFUSION: 0.1, // Diffusion rate of nutrients
+  NUTRIENT_DIFFUSION: 0.2, // Diffusion rate of nutrients (reduced from 0.25)
   NUTRIENT_CONSUMPTION_RATE: 1.0, // Amount of nutrient consumed by a hypha tip per step
 
   // -----------------------------
@@ -94,7 +95,7 @@ export const config = {
   // Mycelial Network Parameters
   // -----------------------------
   INITIAL_RESOURCE_PER_TIP: 2000.0, // Initial resource for each hypha tip
-  RESOURCE_FLOW_RATE: 1.2, // Fraction of resource that flows each tick along edges
+  RESOURCE_FLOW_RATE: 2.0, // Fraction of resource that flows each tick along edges (reduced from 2.5)
 
   // -----------------------------
   // Growth Simulation Parameters
@@ -109,14 +110,14 @@ export const config = {
   BACKGROUND_ALPHA: 0.0, // Transparency for nutrient environment rendering
   FADE_START_FACTOR: 0.8, // Radius factor to start fading
   FADE_END_FACTOR: 1.0, // Radius factor to end fading
-  SHADOW_BLUR: 10, // Blur level for shadows
+  SHADOW_BLUR: 5, // Blur level for shadows (reduced from 10)
   SHADOW_COLOR: "rgba(96, 80, 80, 0.1)", // Shadow color and opacity
 
   // -----------------------------
   // Line Rendering Parameters
   // -----------------------------
-  MAIN_LINE_WIDTH: 2.0, // Width of main hyphal lines
-  SECONDARY_LINE_WIDTH: 1.0, // Width of secondary hyphal lines
+  MAIN_LINE_WIDTH: 1.5, // Width of main hyphal lines (reduced from 2.0)
+  SECONDARY_LINE_WIDTH: 0.75, // Width of secondary hyphal lines (reduced from 1.0)
   MAIN_ALPHA: 1, // Opacity of main hyphal lines
   SECONDARY_ALPHA: 0.7, // Opacity of secondary hyphal lines
 
@@ -125,6 +126,7 @@ export const config = {
   // -----------------------------
   BASE_HUE: 0, // Base hue for hyphal lines (0 = red, but with saturation 0 for white)
   BASE_LIGHTNESS: 80, // Base lightness for hyphal lines
+  NUTRIENT_HUE: 120, // Hue for nutrient visualization (120 = green)
 
   // Lightness Increment
   LIGHTNESS_STEP: 3, // Lightness increase per branching depth

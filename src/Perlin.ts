@@ -78,13 +78,13 @@ export class Perlin {
     const v = this.fade(yf);
 
     const x1 = this.lerp(
-      this.grad(this.perm[bottomLeft], xf, yf),
-      this.grad(this.perm[bottomRight], xf - 1, yf),
+      this.grad(bottomLeft, xf, yf),
+      this.grad(bottomRight, xf - 1, yf),
       u,
     );
     const x2 = this.lerp(
-      this.grad(this.perm[topLeft], xf, yf - 1),
-      this.grad(this.perm[topRight], xf - 1, yf - 1),
+      this.grad(topLeft, xf, yf - 1),
+      this.grad(topRight, xf - 1, yf - 1),
       u,
     );
 
