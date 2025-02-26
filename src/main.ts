@@ -5,8 +5,10 @@ import { GrowthManager } from "./growth.js";
 import { EnvironmentGPU } from "./environmentGPU.js";
 import { MycelialNetwork } from "./mycelialNetwork.js";
 import { Perlin } from "./Perlin.js";
+import { Renderer3D } from "./renderer3D.js";
 import * as dat from "dat.gui";
 
+// Get the main canvas for 2D rendering
 const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d");
 if (!ctx) {
@@ -14,9 +16,50 @@ if (!ctx) {
   throw new Error("Canvas context is null.");
 }
 
+// Create a container for the 3D renderer
+const container3D = document.createElement("div");
+container3D.id = "renderer3d-container";
+container3D.style.position = "absolute";
+container3D.style.top = "0";
+container3D.style.left = "0";
+container3D.style.width = "100%";
+container3D.style.height = "100%";
+container3D.style.pointerEvents = "auto"; // Enable interaction with 3D scene
+document.body.appendChild(container3D);
+
+// Add navigation instructions
+const instructions = document.createElement("div");
+instructions.style.position = "absolute";
+instructions.style.bottom = "10px";
+instructions.style.left = "10px";
+instructions.style.color = "white";
+instructions.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+instructions.style.padding = "10px";
+instructions.style.borderRadius = "5px";
+instructions.style.fontFamily = "Arial, sans-serif";
+instructions.style.zIndex = "1000";
+instructions.innerHTML = `
+  <h3>3D Navigation:</h3>
+  <p>Left-click + drag: Rotate camera</p>
+  <p>Right-click + drag: Pan camera</p>
+  <p>Scroll wheel: Zoom in/out</p>
+`;
+document.body.appendChild(instructions);
+
+// Initialize 3D renderer
+let renderer3D: Renderer3D | null = null;
+if (config.ENABLE_3D) {
+  renderer3D = new Renderer3D(container3D, window.innerWidth, window.innerHeight);
+}
+
 const resizeCanvas = () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  
+  // Resize 3D renderer if available
+  if (renderer3D) {
+    renderer3D.resize(window.innerWidth, window.innerHeight);
+  }
 };
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
@@ -31,6 +74,11 @@ function resetSimulation() {
   perlin = new Perlin();
   envGPU = new EnvironmentGPU(canvas.width, canvas.height);
   network = new MycelialNetwork();
+  
+  // Reset 3D renderer if enabled
+  if (config.ENABLE_3D && renderer3D) {
+    renderer3D.clear();
+  }
 
   // Reset growth manager with updated configuration
   growth = new GrowthManager(
@@ -42,8 +90,17 @@ function resetSimulation() {
     perlin,
     envGPU,
     network,
+    renderer3D, // Pass the 3D renderer
   );
   growth.init();
+
+  // Visualize the nutrient environment in 3D if enabled
+  if (config.ENABLE_3D && renderer3D && config.SHOW_NUTRIENT_ENVIRONMENT) {
+    renderer3D.visualizeNutrientEnvironment(
+      envGPU.getNutrientGrid(),
+      config.ENV_GRID_CELL_SIZE
+    );
+  }
 
   console.log("Simulation reset.");
 }
@@ -69,7 +126,7 @@ const setup = () => {
   // Initialize mycelial network
   network = new MycelialNetwork();
 
-  // Initialize growth manager
+  // Initialize growth manager with 3D renderer if enabled
   growth = new GrowthManager(
     ctx as CanvasRenderingContext2D,
     canvas.width,
@@ -79,8 +136,17 @@ const setup = () => {
     perlin,
     envGPU,
     network,
+    renderer3D, // Pass the 3D renderer
   );
   growth.init();
+  
+  // Visualize the nutrient environment in 3D if enabled
+  if (config.ENABLE_3D && renderer3D && config.SHOW_NUTRIENT_ENVIRONMENT) {
+    renderer3D.visualizeNutrientEnvironment(
+      envGPU.getNutrientGrid(),
+      config.ENV_GRID_CELL_SIZE
+    );
+  }
 
   console.log("Simulation initialized.");
 };
@@ -188,6 +254,39 @@ const initGUI = () => {
     .name("Perlin Scale")
     .onChange(resetSimulation);
   growthFolder.open();
+  
+  // 3D Growth Parameters
+  const growth3DFolder = gui.addFolder("3D Growth Parameters");
+  growth3DFolder
+    .add(config, "ENABLE_3D")
+    .name("Enable 3D Growth")
+    .onChange(resetSimulation);
+  growth3DFolder
+    .add(config, "GROWTH_HEIGHT_FACTOR", 0.1, 2.0)
+    .step(0.1)
+    .name("Growth Height Factor")
+    .onChange(resetSimulation);
+  growth3DFolder
+    .add(config, "VERTICAL_ANGLE_DRIFT_STRENGTH", 0.0, 0.2)
+    .step(0.01)
+    .name("Vertical Angle Drift")
+    .onChange(resetSimulation);
+  growth3DFolder
+    .add(config, "VERTICAL_WIGGLE_STRENGTH", 0.0, 1.0)
+    .step(0.05)
+    .name("Vertical Wiggle")
+    .onChange(resetSimulation);
+  growth3DFolder
+    .add(config, "GRAVITY_INFLUENCE", 0.0, 1.0)
+    .step(0.05)
+    .name("Gravity Influence")
+    .onChange(resetSimulation);
+  growth3DFolder
+    .add(config, "SURFACE_GROWTH_BIAS", 0.0, 1.0)
+    .step(0.05)
+    .name("Surface Growth Bias")
+    .onChange(resetSimulation);
+  growth3DFolder.open();
 
   // Environmental Parameters
   const envFolder = gui.addFolder("Environmental Parameters");
@@ -349,6 +448,51 @@ const initGUI = () => {
     .name("Anastomosis Radius")
     .onChange(resetSimulation);
   miscFolder.open();
+  
+  // 3D Rendering Parameters
+  const render3DFolder = gui.addFolder("3D Rendering");
+  render3DFolder
+    .add(config, "SHOW_NODES_3D")
+    .name("Show Nodes")
+    .onChange(resetSimulation);
+  render3DFolder
+    .add(config, "NODE_OPACITY", 0.0, 1.0)
+    .step(0.05)
+    .name("Node Opacity")
+    .onChange(resetSimulation);
+  render3DFolder
+    .add(config, "SHOW_NUTRIENT_ENVIRONMENT")
+    .name("Show Nutrients")
+    .onChange(resetSimulation);
+  render3DFolder
+    .add(config, "NUTRIENT_POINT_SIZE", 0.5, 5.0)
+    .step(0.1)
+    .name("Nutrient Point Size")
+    .onChange(resetSimulation);
+  render3DFolder
+    .add(config, "NUTRIENT_POINT_OPACITY", 0.0, 1.0)
+    .step(0.05)
+    .name("Nutrient Opacity")
+    .onChange(resetSimulation);
+  render3DFolder
+    .add(config, "CAMERA_DISTANCE", 50, 200)
+    .step(10)
+    .name("Camera Distance")
+    .onChange(() => {
+      if (renderer3D) {
+        renderer3D.setCameraDistance(config.CAMERA_DISTANCE);
+      }
+    });
+  render3DFolder
+    .add(config, "CAMERA_FOV", 30, 100)
+    .step(5)
+    .name("Camera FOV")
+    .onChange(() => {
+      if (renderer3D) {
+        renderer3D.setCameraFOV(config.CAMERA_FOV);
+      }
+    });
+  render3DFolder.open();
 
   // Add a button to reset the simulation manually
   gui.add({ restart: () => setup() }, "restart").name("Restart Simulation");

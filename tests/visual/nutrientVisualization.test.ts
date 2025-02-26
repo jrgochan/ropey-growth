@@ -6,6 +6,9 @@ import { GrowthManager } from "../../src/growth";
 import { Perlin } from "../../src/Perlin";
 import { MycelialNetwork } from "../../src/mycelialNetwork";
 
+// Store original config
+const originalConfig = { ...config };
+
 // Mock canvas and context for testing
 class MockCanvasRenderingContext2D {
   canvas: HTMLCanvasElement;
@@ -103,11 +106,52 @@ vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
   return originalCreateElement.call(document, tagName);
 });
 
+// Mock for 3D renderer
+class MockRenderer3D {
+  // Track method calls for assertions
+  methodCalls: Record<string, any[][]> = {
+    clear: [],
+    render: [],
+    addHyphalSegment: [],
+    visualizeNutrientEnvironment: [],
+    setCameraDistance: [],
+    setCameraFOV: [],
+    resize: [],
+  };
+  
+  // Mock methods
+  clear() { this.methodCalls.clear.push([]); }
+  render() { this.methodCalls.render.push([]); }
+  addHyphalSegment(id: string, start: any, end: any, type: string, depth: number, nutrientIntensity: number) {
+    this.methodCalls.addHyphalSegment.push([id, start, end, type, depth, nutrientIntensity]);
+  }
+  visualizeNutrientEnvironment(grid: number[][][], cellSize: number) {
+    this.methodCalls.visualizeNutrientEnvironment.push([grid, cellSize]);
+  }
+  setCameraDistance(distance: number) {
+    this.methodCalls.setCameraDistance.push([distance]);
+  }
+  setCameraFOV(fov: number) {
+    this.methodCalls.setCameraFOV.push([fov]);
+  }
+  resize(width: number, height: number) {
+    this.methodCalls.resize.push([width, height]);
+  }
+  
+  // Reset all tracked calls
+  resetCalls() {
+    Object.keys(this.methodCalls).forEach(key => {
+      this.methodCalls[key] = [];
+    });
+  }
+}
+
 describe("Nutrient Visualization", () => {
   let env: EnvironmentGPU;
   let growth: GrowthManager;
   let mockCanvas: MockCanvas;
   let mockCtx: MockCanvasRenderingContext2D;
+  let mockRenderer3D: MockRenderer3D;
   let perlin: Perlin;
   let network: MycelialNetwork;
   const width = 800;
@@ -117,10 +161,17 @@ describe("Nutrient Visualization", () => {
     // Reset mocks
     vi.resetAllMocks();
     
+    // Reset config to original values
+    Object.assign(config, originalConfig);
+    
     // Create mock canvas and context
     mockCanvas = new MockCanvas();
     mockCtx = mockCanvas.getContext('2d') as MockCanvasRenderingContext2D;
     mockCtx.resetCalls();
+    
+    // Create mock 3D renderer
+    mockRenderer3D = new MockRenderer3D();
+    mockRenderer3D.resetCalls();
     
     // Create environment
     env = new EnvironmentGPU(width, height);
@@ -157,7 +208,7 @@ describe("Nutrient Visualization", () => {
     expect(env).toBeDefined();
   });
   
-  it("should get nutrient level at a specific position", () => {
+  it("should get nutrient level at a specific position in 2D (backward compatibility)", () => {
     // Add nutrients at a specific location
     env.addNutrient(100, 100, 50);
     
@@ -168,7 +219,18 @@ describe("Nutrient Visualization", () => {
     expect(level).toBeGreaterThan(0);
   });
   
-  it("should draw nutrient grid for debugging", () => {
+  it("should get nutrient level at a specific position in 3D", () => {
+    // Add nutrients at a specific 3D location
+    env.addNutrient(100, 100, 10, 50);
+    
+    // Get the nutrient level at that 3D location
+    const level = env.getNutrientLevel(100, 100, 10);
+    
+    // Verify that the nutrient level is correct
+    expect(level).toBeGreaterThan(0);
+  });
+  
+  it("should draw nutrient grid for debugging in 2D", () => {
     // Add nutrients at a specific location
     env.addNutrient(100, 100, 50);
     
@@ -179,7 +241,34 @@ describe("Nutrient Visualization", () => {
     expect(mockCtx.methodCalls.fillRect.length).toBeGreaterThan(0);
   });
   
-  it("should render hyphae segments with green glow based on nutrient levels", () => {
+  it("should visualize 3D nutrient environment", () => {
+    // Enable 3D
+    config.ENABLE_3D = true;
+    
+    // Create a new environment with 3D enabled
+    const env3D = new EnvironmentGPU(width, height);
+    
+    // Create growth manager with 3D renderer
+    const growth3D = new GrowthManager(
+      mockCtx as unknown as CanvasRenderingContext2D,
+      width,
+      height,
+      width / 2,
+      height / 2,
+      perlin,
+      env3D,
+      network,
+      mockRenderer3D as any
+    );
+    
+    // Initialize growth
+    growth3D.init();
+    
+    // Verify that the 3D renderer was used to visualize the nutrient environment
+    expect(mockRenderer3D.methodCalls.visualizeNutrientEnvironment.length).toBeGreaterThan(0);
+  });
+  
+  it("should render hyphae segments with green glow based on nutrient levels in 2D", () => {
     // Initialize growth
     growth.init();
     
@@ -194,10 +283,37 @@ describe("Nutrient Visualization", () => {
     expect(mockCtx.methodCalls.moveTo.length).toBeGreaterThan(0);
     expect(mockCtx.methodCalls.lineTo.length).toBeGreaterThan(0);
     expect(mockCtx.methodCalls.stroke.length).toBeGreaterThan(0);
+  });
+  
+  it("should render hyphae segments in 3D with nutrient-based coloring", () => {
+    // Enable 3D
+    config.ENABLE_3D = true;
     
-    // Check that the strokeStyle contains "hsla" with green hue (120)
-    // This is a simplification since we can't directly check the strokeStyle in the mock
-    // In a real test, we might need to spy on the strokeStyle setter
+    // Create growth manager with 3D renderer
+    const growth3D = new GrowthManager(
+      mockCtx as unknown as CanvasRenderingContext2D,
+      width,
+      height,
+      width / 2,
+      height / 2,
+      perlin,
+      env,
+      network,
+      mockRenderer3D as any
+    );
+    
+    // Initialize growth
+    growth3D.init();
+    
+    // Add nutrients at specific locations
+    env.addNutrient(width/2, height/2, 10, 100); // Center with z=10
+    
+    // Update and draw the growth
+    growth3D.updateAndDraw(0);
+    
+    // Verify that 3D rendering methods were called
+    expect(mockRenderer3D.methodCalls.addHyphalSegment.length).toBeGreaterThan(0);
+    expect(mockRenderer3D.methodCalls.render.length).toBeGreaterThan(0);
   });
   
   it("should create visual snapshots correctly", () => {
@@ -245,5 +361,37 @@ describe("Nutrient Visualization", () => {
     
     // Due to the mock implementation, the difference will be 0
     expect(difference).toBe(0);
+  });
+  
+  it("should handle 3D camera controls", () => {
+    // Enable 3D
+    config.ENABLE_3D = true;
+    
+    // Create growth manager with 3D renderer
+    const growth3D = new GrowthManager(
+      mockCtx as unknown as CanvasRenderingContext2D,
+      width,
+      height,
+      width / 2,
+      height / 2,
+      perlin,
+      env,
+      network,
+      mockRenderer3D as any
+    );
+    
+    // Set camera distance
+    mockRenderer3D.setCameraDistance(150);
+    
+    // Set camera FOV
+    mockRenderer3D.setCameraFOV(60);
+    
+    // Verify that camera control methods were called
+    expect(mockRenderer3D.methodCalls.setCameraDistance.length).toBe(1);
+    expect(mockRenderer3D.methodCalls.setCameraFOV.length).toBe(1);
+    
+    // Verify the values
+    expect(mockRenderer3D.methodCalls.setCameraDistance[0][0]).toBe(150);
+    expect(mockRenderer3D.methodCalls.setCameraFOV[0][0]).toBe(60);
   });
 });

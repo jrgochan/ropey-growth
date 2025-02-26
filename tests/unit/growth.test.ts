@@ -9,12 +9,16 @@ import { config } from "../../src/constants";
 console.log = vi.fn();
 console.warn = vi.fn();
 
+// Store original config
+const originalConfig = { ...config };
+
 describe("GrowthManager", () => {
   let growthManager: GrowthManager;
   let mockCtx: any;
   let perlin: Perlin;
   let envGPU: EnvironmentGPU;
   let network: MycelialNetwork;
+  let mockRenderer3D: any;
 
   const width = 800;
   const height = 600;
@@ -24,6 +28,9 @@ describe("GrowthManager", () => {
   beforeEach(() => {
     // Reset mocks
     vi.resetAllMocks();
+    
+    // Reset config to original values
+    Object.assign(config, originalConfig);
 
     // Create mock canvas context
     mockCtx = {
@@ -40,6 +47,14 @@ describe("GrowthManager", () => {
       stroke: vi.fn(),
       clearRect: vi.fn(),
       fillRect: vi.fn(),
+    };
+    
+    // Create mock 3D renderer
+    mockRenderer3D = {
+      clear: vi.fn(),
+      render: vi.fn(),
+      addHyphalSegment: vi.fn(),
+      visualizeNutrientEnvironment: vi.fn(),
     };
 
     // Initialize dependencies
@@ -81,6 +96,41 @@ describe("GrowthManager", () => {
     );
     expect(hasInitializedTipLog).toBe(true);
   });
+  
+  it("should initialize 3D tips with vertical angles", () => {
+    // Enable 3D
+    config.ENABLE_3D = true;
+    
+    // Create growth manager with 3D renderer
+    const growth3D = new GrowthManager(
+      mockCtx,
+      width,
+      height,
+      centerX,
+      centerY,
+      perlin,
+      envGPU,
+      network,
+      mockRenderer3D,
+    );
+    
+    // Spy on network methods
+    const createNodeSpy = vi.spyOn(network, "createNode");
+    
+    growth3D.init();
+    
+    // Should create as many nodes as MAIN_BRANCH_COUNT
+    expect(createNodeSpy).toHaveBeenCalledTimes(config.MAIN_BRANCH_COUNT);
+    
+    // Check if any of the console.log calls contain the expected string with verticalAngle
+    const logCalls = (console.log as any).mock.calls;
+    const hasVerticalAngleLog = logCalls.some(
+      (call: any[]) =>
+        typeof call[0] === "string" &&
+        call[0].match(/verticalAngle=/),
+    );
+    expect(hasVerticalAngleLog).toBe(true);
+  });
 
   it("should update and draw correctly", () => {
     growthManager.init();
@@ -93,12 +143,63 @@ describe("GrowthManager", () => {
     expect(mockCtx.fillRect).toHaveBeenCalled();
     expect(flowResourcesSpy).toHaveBeenCalled();
   });
+  
+  it("should update and render 3D scene when 3D renderer is provided", () => {
+    // Enable 3D
+    config.ENABLE_3D = true;
+    
+    // Create growth manager with 3D renderer
+    const growth3D = new GrowthManager(
+      mockCtx,
+      width,
+      height,
+      centerX,
+      centerY,
+      perlin,
+      envGPU,
+      network,
+      mockRenderer3D,
+    );
+    
+    growth3D.init();
+    
+    // We need to mock Network.flowResources because it will be called by updateAndDraw
+    const flowResourcesSpy = vi.spyOn(network, "flowResources");
+    
+    growth3D.updateAndDraw(Date.now());
+    
+    expect(mockCtx.fillRect).toHaveBeenCalled();
+    expect(flowResourcesSpy).toHaveBeenCalled();
+    expect(mockRenderer3D.render).toHaveBeenCalled();
+  });
 
   it("should clear growth when clear() is called", () => {
     growthManager.init();
     growthManager.clear();
 
     expect(mockCtx.clearRect).toHaveBeenCalledWith(0, 0, width, height);
+    expect(console.log).toHaveBeenCalledWith("Simulation cleared.");
+  });
+  
+  it("should clear 3D renderer when clear() is called with 3D renderer", () => {
+    // Create growth manager with 3D renderer
+    const growth3D = new GrowthManager(
+      mockCtx,
+      width,
+      height,
+      centerX,
+      centerY,
+      perlin,
+      envGPU,
+      network,
+      mockRenderer3D,
+    );
+    
+    growth3D.init();
+    growth3D.clear();
+    
+    expect(mockCtx.clearRect).toHaveBeenCalledWith(0, 0, width, height);
+    expect(mockRenderer3D.clear).toHaveBeenCalled();
     expect(console.log).toHaveBeenCalledWith("Simulation cleared.");
   });
 
@@ -126,5 +227,29 @@ describe("GrowthManager", () => {
       // Restore the original value
       config.TIME_LAPSE_FACTOR = originalTimeLapseFactor;
     }
+  });
+  
+  it("should set 3D renderer after initialization", () => {
+    // Create growth manager without 3D renderer
+    const growth = new GrowthManager(
+      mockCtx,
+      width,
+      height,
+      centerX,
+      centerY,
+      perlin,
+      envGPU,
+      network,
+    );
+    
+    // Set 3D renderer after initialization
+    growth.setRenderer3D(mockRenderer3D);
+    
+    // Initialize and update
+    growth.init();
+    growth.updateAndDraw(Date.now());
+    
+    // Should use the 3D renderer
+    expect(mockRenderer3D.render).toHaveBeenCalled();
   });
 });

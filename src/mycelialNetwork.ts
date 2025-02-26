@@ -12,6 +12,7 @@ interface Node {
   id: number;
   x: number;
   y: number;
+  z: number; // Added z-coordinate for 3D
   resource: number;
   connections: number[]; // IDs of connected nodes
 }
@@ -25,15 +26,23 @@ export class MycelialNetwork {
    * Creates a new node in the network.
    * @param x - X-coordinate of the node.
    * @param y - Y-coordinate of the node.
+   * @param z - Z-coordinate of the node (default: 0).
    * @param resource - Initial resource of the node.
    * @returns The unique ID of the created node.
    */
-  public createNode(x: number, y: number, resource: number): number {
+  public createNode(x: number, y: number, z: number = 0, resource: number = 0): number {
+    // Support for backward compatibility with 2D calls
+    if (arguments.length === 3) {
+      resource = z;
+      z = 0;
+    }
+    
     const id = this.nextId++;
     this.nodes.set(id, {
       id,
       x,
       y,
+      z,
       resource,
       connections: [],
     });

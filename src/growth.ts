@@ -11,7 +11,9 @@ export type GrowthType = "main" | "secondary";
 export interface HyphaTip {
   x: number;
   y: number;
-  angle: number;
+  z: number; // Added z-coordinate for 3D
+  angle: number; // Horizontal angle (in the XY plane)
+  verticalAngle: number; // Vertical angle (for Z-axis movement)
   life: number;
   depth: number;
   growthType: GrowthType;
@@ -19,11 +21,12 @@ export interface HyphaTip {
 }
 
 /**
- * GrowthManager class handles the simulation of hyphal growth.
+ * GrowthManager class handles the simulation of hyphal growth in 3D.
  */
 export class GrowthManager {
   private tips: HyphaTip[] = [];
   private growthRadius: number;
+  private growthHeight: number;
   private lastDiffuseTime: number = 0;
   private lastReplenishTime: number = 0;
   private frameCount: number = 0;
@@ -42,6 +45,9 @@ export class GrowthManager {
   private lastFrameTime: number = 0;
   private frameTimes: number[] = [];
   private adaptiveStepCount: number = 1;
+  
+  // 3D renderer reference (optional)
+  private renderer3D: any = null;
 
   /**
    * Constructor initializes the GrowthManager.
@@ -53,6 +59,7 @@ export class GrowthManager {
    * @param perlin - Instance of Perlin noise generator.
    * @param envGPU - Instance of EnvironmentGPU for resource management.
    * @param network - Instance of MycelialNetwork for resource flow management.
+   * @param renderer3D - Optional 3D renderer for 3D visualization.
    */
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -63,8 +70,19 @@ export class GrowthManager {
     private perlin: Perlin,
     private envGPU: EnvironmentGPU,
     private network: MycelialNetwork, // Injecting the network for resource flow
+    renderer3D?: any, // Optional 3D renderer
   ) {
     this.growthRadius = Math.min(width, height) * config.GROWTH_RADIUS_FACTOR;
+    this.growthHeight = this.growthRadius * config.GROWTH_HEIGHT_FACTOR;
+    this.renderer3D = renderer3D;
+  }
+  
+  /**
+   * Sets the 3D renderer for visualization
+   * @param renderer3D - The 3D renderer instance
+   */
+  public setRenderer3D(renderer3D: any): void {
+    this.renderer3D = renderer3D;
   }
 
   /**
@@ -85,10 +103,15 @@ export class GrowthManager {
     // Create main trunks from the center
     for (let i = 0; i < config.MAIN_BRANCH_COUNT; i++) {
       const angle = Math.random() * Math.PI * 2;
+      // For 3D growth, add a slight vertical angle bias based on position
+      const verticalAngle = (Math.random() - 0.5) * Math.PI * 0.2; // Small random vertical angle
+      
       const newTip: HyphaTip = {
         x: this.centerX,
         y: this.centerY,
+        z: 0, // Start at the surface
         angle,
+        verticalAngle,
         life: config.BASE_LIFE,
         depth: 0,
         growthType: "main",
@@ -97,28 +120,49 @@ export class GrowthManager {
       this.tips.push(newTip);
       
       // Log for testing purposes
-      console.log(`Initialized main tip ${i}: x=${this.centerX}, y=${this.centerY}, angle=${angle.toFixed(2)}`);
+      console.log(`Initialized main tip ${i}: x=${this.centerX}, y=${this.centerY}, z=0, angle=${angle.toFixed(2)}, verticalAngle=${verticalAngle.toFixed(2)}`);
     }
 
     // Create network nodes for each main branch
     this.tips.forEach((tip) => {
-      const nodeId = this.network.createNode(tip.x, tip.y, tip.resource);
+      const nodeId = this.network.createNode(tip.x, tip.y, tip.z, tip.resource);
     });
+    
+    // If we have a 3D renderer, clear it
+    if (this.renderer3D) {
+      this.renderer3D.clear();
+    }
   }
 
   /**
    * Gets a cached Perlin noise value or calculates and caches a new one
    * @param x - X coordinate
    * @param y - Y coordinate
+   * @param z - Z coordinate
    * @param offset - Optional offset for different noise patterns
    * @returns Perlin noise value
    */
-  private getCachedPerlinNoise(x: number, y: number, offset: number = 0): number {
-    const key = `${(x * config.PERLIN_SCALE).toFixed(1)},${(y * config.PERLIN_SCALE).toFixed(1)},${offset}`;
+  private getCachedPerlinNoise(x: number, y: number, z: number = 0, offset: number = 0): number {
+    // For 2D noise (backward compatibility)
+    if (z === 0 && !config.ENABLE_3D) {
+      const key = `2D:${(x * config.PERLIN_SCALE).toFixed(1)},${(y * config.PERLIN_SCALE).toFixed(1)},${offset}`;
+      if (!this.perlinCache.has(key)) {
+        const value = this.perlin.noise2D(
+          (x + offset) * config.PERLIN_SCALE,
+          (y + offset) * config.PERLIN_SCALE
+        );
+        this.perlinCache.set(key, value);
+      }
+      return this.perlinCache.get(key)!;
+    }
+    
+    // For 3D noise
+    const key = `3D:${(x * config.PERLIN_SCALE).toFixed(1)},${(y * config.PERLIN_SCALE).toFixed(1)},${(z * config.PERLIN_SCALE).toFixed(1)},${offset}`;
     if (!this.perlinCache.has(key)) {
-      const value = this.perlin.noise2D(
+      const value = this.perlin.noise3D(
         (x + offset) * config.PERLIN_SCALE,
-        (y + offset) * config.PERLIN_SCALE
+        (y + offset) * config.PERLIN_SCALE,
+        (z + offset) * config.PERLIN_SCALE
       );
       this.perlinCache.set(key, value);
       
@@ -138,12 +182,14 @@ export class GrowthManager {
    * Gets the spatial grid cell key for a position
    * @param x - X coordinate
    * @param y - Y coordinate
+   * @param z - Z coordinate
    * @returns Grid cell key
    */
-  private getSpatialGridKey(x: number, y: number): string {
+  private getSpatialGridKey(x: number, y: number, z: number = 0): string {
     const gridX = Math.floor(x / this.gridCellSize);
     const gridY = Math.floor(y / this.gridCellSize);
-    return `${gridX},${gridY}`;
+    const gridZ = Math.floor(z / this.gridCellSize);
+    return `${gridX},${gridY},${gridZ}`;
   }
   
   /**
@@ -152,7 +198,7 @@ export class GrowthManager {
   private updateSpatialGrid(): void {
     this.spatialGrid.clear();
     for (const tip of this.tips) {
-      const key = this.getSpatialGridKey(tip.x, tip.y);
+      const key = this.getSpatialGridKey(tip.x, tip.y, tip.z);
       if (!this.spatialGrid.has(key)) {
         this.spatialGrid.set(key, []);
       }
@@ -164,25 +210,31 @@ export class GrowthManager {
    * Checks if a position is too close to existing tips
    * @param x - X coordinate
    * @param y - Y coordinate
+   * @param z - Z coordinate
    * @param growthType - Growth type to compare against
    * @returns Whether the position is too close to existing tips
    */
-  private isTooCloseToExistingTips(x: number, y: number, growthType: GrowthType): boolean {
-    const key = this.getSpatialGridKey(x, y);
+  private isTooCloseToExistingTips(x: number, y: number, z: number, growthType: GrowthType): boolean {
+    const key = this.getSpatialGridKey(x, y, z);
     
     // Check the current cell and neighboring cells
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
-        const neighborKey = `${Math.floor(x / this.gridCellSize) + dx},${Math.floor(y / this.gridCellSize) + dy}`;
-        const cellTips = this.spatialGrid.get(neighborKey);
-        
-        if (cellTips) {
-          for (const tip of cellTips) {
-            if (tip.growthType !== growthType) {
-              const distance = Math.hypot(x - tip.x, y - tip.y);
-              if (distance < config.ANASTOMOSIS_RADIUS) {
-                console.log(`Tip at (${x.toFixed(2)}, ${y.toFixed(2)}) fused due to proximity to tip at (${tip.x.toFixed(2)}, ${tip.y.toFixed(2)})`);
-                return true;
+        for (let dz = -1; dz <= 1; dz++) {
+          const neighborKey = `${Math.floor(x / this.gridCellSize) + dx},${Math.floor(y / this.gridCellSize) + dy},${Math.floor(z / this.gridCellSize) + dz}`;
+          const cellTips = this.spatialGrid.get(neighborKey);
+          
+          if (cellTips) {
+            for (const tip of cellTips) {
+              if (tip.growthType !== growthType) {
+                const distance = Math.sqrt(
+                  Math.pow(x - tip.x, 2) + 
+                  Math.pow(y - tip.y, 2) + 
+                  Math.pow(z - tip.z, 2)
+                );
+                if (distance < config.ANASTOMOSIS_RADIUS) {
+                  return true;
+                }
               }
             }
           }
@@ -276,10 +328,15 @@ export class GrowthManager {
       this.envGPU.replenishNutrients();
       this.lastReplenishTime = currentTime;
     }
+    
+    // Render 3D scene if available
+    if (this.renderer3D) {
+      this.renderer3D.render();
+    }
   }
 
   /**
-   * Simulates a single step of hyphal growth.
+   * Simulates a single step of hyphal growth in 3D.
    */
   private simOneStep() {
     const newTips: HyphaTip[] = [];
@@ -299,6 +356,7 @@ export class GrowthManager {
         const consumed = this.envGPU.consumeResource(
           tip.x,
           tip.y,
+          tip.z,
           config.NUTRIENT_CONSUMPTION_RATE,
         );
         tip.resource -= consumed;
@@ -311,14 +369,33 @@ export class GrowthManager {
 
         const oldX = tip.x;
         const oldY = tip.y;
+        const oldZ = tip.z;
 
-        // Use cached Perlin noise for angle drift (major performance improvement)
-        const nVal = this.getCachedPerlinNoise(tip.x, tip.y);
+        // Use cached Perlin noise for horizontal angle drift
+        const nVal = this.getCachedPerlinNoise(tip.x, tip.y, tip.z);
         tip.angle += nVal * config.ANGLE_DRIFT_STRENGTH;
+        
+        // Use cached Perlin noise for vertical angle drift
+        const nValVertical = this.getCachedPerlinNoise(tip.x, tip.y, tip.z, 5678);
+        tip.verticalAngle += nValVertical * config.VERTICAL_ANGLE_DRIFT_STRENGTH;
+        
+        // Apply gravity influence - bias vertical angle downward based on depth
+        // Deeper hyphae tend to grow more horizontally
+        if (tip.z > 0) {
+          const gravityFactor = config.GRAVITY_INFLUENCE * (tip.z / this.growthHeight);
+          tip.verticalAngle -= gravityFactor * 0.01;
+        }
+        
+        // Clamp vertical angle to prevent extreme values
+        tip.verticalAngle = Math.max(-Math.PI/2, Math.min(Math.PI/2, tip.verticalAngle));
 
         // Use cached Perlin noise for wiggle
-        const nVal2 = this.getCachedPerlinNoise(tip.x, tip.y, 1234);
+        const nVal2 = this.getCachedPerlinNoise(tip.x, tip.y, tip.z, 1234);
         const wiggle = nVal2 * config.WIGGLE_STRENGTH;
+        
+        // Vertical wiggle
+        const nVal3 = this.getCachedPerlinNoise(tip.x, tip.y, tip.z, 4321);
+        const verticalWiggle = nVal3 * config.VERTICAL_WIGGLE_STRENGTH;
 
         // Optimize step size calculation
         const stepMultiplier = Math.min(1.5, tip.resource / config.INITIAL_RESOURCE_PER_TIP);
@@ -327,17 +404,34 @@ export class GrowthManager {
         // Optimize movement calculations by pre-computing trig values
         const cosAngle = Math.cos(tip.angle);
         const sinAngle = Math.sin(tip.angle);
-        const cosAnglePlusHalfPi = Math.cos(tip.angle + Math.PI / 2);
-        const sinAnglePlusHalfPi = Math.sin(tip.angle + Math.PI / 2);
+        const cosVerticalAngle = Math.cos(tip.verticalAngle);
+        const sinVerticalAngle = Math.sin(tip.verticalAngle);
         
-        // Move the tip forward (optimized)
+        // Move the tip forward in 3D space
         const growthFactor = config.GROWTH_SPEED_MULTIPLIER;
         const wiggleFactor = wiggle * 0.2;
+        const verticalWiggleFactor = verticalWiggle * 0.1;
         
-        tip.x += (cosAngle * actualStepSize + cosAnglePlusHalfPi * wiggleFactor) * growthFactor;
-        tip.y += (sinAngle * actualStepSize + sinAnglePlusHalfPi * wiggleFactor) * growthFactor;
+        // Calculate 3D movement
+        // Horizontal movement is scaled by cosine of vertical angle
+        tip.x += (cosAngle * cosVerticalAngle * actualStepSize + wiggleFactor) * growthFactor;
+        tip.y += (sinAngle * cosVerticalAngle * actualStepSize + wiggleFactor) * growthFactor;
+        // Vertical movement is determined by sine of vertical angle
+        tip.z += (sinVerticalAngle * actualStepSize + verticalWiggleFactor) * growthFactor;
+        
+        // Apply surface growth bias - tips near the surface tend to stay near the surface
+        if (tip.z < this.growthHeight * 0.1) {
+          const surfaceBias = Math.random() * config.SURFACE_GROWTH_BIAS;
+          if (tip.verticalAngle < 0) {
+            // If growing downward near surface, reduce downward angle
+            tip.verticalAngle *= (1 - surfaceBias);
+          }
+        }
+        
+        // Ensure z stays within bounds
+        tip.z = Math.max(0, Math.min(this.growthHeight, tip.z));
 
-        // Fast distance check using squared distance
+        // Fast distance check using squared distance (horizontal distance only)
         const dx = tip.x - this.centerX;
         const dy = tip.y - this.centerY;
         const distSquared = dx * dx + dy * dy;
@@ -349,8 +443,34 @@ export class GrowthManager {
         // Decrement life
         tip.life--;
 
-        // Render the segment
+        // Create a network node for this position
+        const nodeId = this.network.createNode(tip.x, tip.y, tip.z, tip.resource);
+        
+        // Render the segment in 2D (projection)
         this.drawSegment(oldX, oldY, tip.x, tip.y, tip.growthType, tip.depth);
+        
+        // Render in 3D if renderer is available
+        if (this.renderer3D) {
+          const segmentId = `${oldX.toFixed(1)},${oldY.toFixed(1)},${oldZ.toFixed(1)}-${tip.x.toFixed(1)},${tip.y.toFixed(1)},${tip.z.toFixed(1)}`;
+          const startPoint = { x: oldX, y: oldY, z: oldZ };
+          const endPoint = { x: tip.x, y: tip.y, z: tip.z };
+          
+          // Get nutrient level for coloring
+          const midX = (oldX + tip.x) / 2;
+          const midY = (oldY + tip.y) / 2;
+          const midZ = (oldZ + tip.z) / 2;
+          const nutrientLevel = this.envGPU.getNutrientLevel(midX, midY, midZ);
+          const nutrientIntensity = Math.min(1, nutrientLevel / config.BASE_NUTRIENT);
+          
+          this.renderer3D.addHyphalSegment(
+            segmentId,
+            startPoint,
+            endPoint,
+            tip.growthType,
+            tip.depth,
+            nutrientIntensity
+          );
+        }
 
         // Handle branching with optimized random check
         const resourceRatio = tip.resource / config.INITIAL_RESOURCE_PER_TIP;
@@ -367,22 +487,52 @@ export class GrowthManager {
           );
           
           for (let i = 0; i < branchCount; i++) {
-            const angleOffset = (Math.random() - 0.5) * config.WIDER_SECONDARY_ANGLE;
-            const newAngle = tip.angle + angleOffset + (Math.random() - 0.5) * 0.1;
+            // More realistic branching angles - mycelial branches tend to form at more acute angles
+            // Horizontal angle offset - biased towards perpendicular branching
+            let angleOffset;
+            if (Math.random() < 0.7) {
+              // 70% chance of branching at a more perpendicular angle (more realistic for fungi)
+              angleOffset = (Math.random() < 0.5 ? 1 : -1) * (Math.PI/4 + Math.random() * Math.PI/4);
+            } else {
+              // 30% chance of more random angle
+              angleOffset = (Math.random() - 0.5) * config.WIDER_SECONDARY_ANGLE;
+            }
+            const newAngle = tip.angle + angleOffset;
+            
+            // Vertical angle offset - branches tend to grow more horizontally than the parent
+            // This is more realistic for mycelial networks which tend to spread horizontally
+            let verticalAngleOffset;
+            if (tip.verticalAngle > 0 && Math.random() < 0.6) {
+              // If parent is growing upward, branch tends to be more horizontal
+              verticalAngleOffset = -Math.random() * tip.verticalAngle * 0.8;
+            } else if (tip.verticalAngle < 0 && Math.random() < 0.6) {
+              // If parent is growing downward, branch tends to be more horizontal
+              verticalAngleOffset = Math.random() * Math.abs(tip.verticalAngle) * 0.8;
+            } else {
+              // Random variation
+              verticalAngleOffset = (Math.random() - 0.5) * Math.PI * 0.2;
+            }
+            const newVerticalAngle = tip.verticalAngle + verticalAngleOffset;
 
-            const spawnDistance = config.STEP_SIZE * config.GROWTH_SPEED_MULTIPLIER;
-            const spawnX = tip.x + Math.cos(newAngle) * spawnDistance;
-            const spawnY = tip.y + Math.sin(newAngle) * spawnDistance;
+            // Slightly longer spawn distance for more visible branching
+            const spawnDistance = config.STEP_SIZE * config.GROWTH_SPEED_MULTIPLIER * 1.2;
+            
+            // Calculate spawn position in 3D
+            const spawnX = tip.x + Math.cos(newAngle) * Math.cos(newVerticalAngle) * spawnDistance;
+            const spawnY = tip.y + Math.sin(newAngle) * Math.cos(newVerticalAngle) * spawnDistance;
+            const spawnZ = tip.z + Math.sin(newVerticalAngle) * spawnDistance;
 
             // Skip creating new tips that would be too close to existing ones
-            if (this.isTooCloseToExistingTips(spawnX, spawnY, "secondary")) {
+            if (this.isTooCloseToExistingTips(spawnX, spawnY, spawnZ, "secondary")) {
               continue;
             }
 
             const newTip: HyphaTip = {
               x: spawnX,
               y: spawnY,
+              z: spawnZ,
               angle: newAngle,
+              verticalAngle: newVerticalAngle,
               life: Math.max(
                 tip.life * config.BRANCH_DECAY,
                 config.BASE_LIFE * 0.5,
@@ -504,6 +654,12 @@ export class GrowthManager {
     this.perlinCache.clear();
     this.spatialGrid.clear();
     this.colorCache.clear();
+    
+    // Clear 3D renderer if available
+    if (this.renderer3D) {
+      this.renderer3D.clear();
+    }
+    
     console.log("Simulation cleared.");
   }
 }

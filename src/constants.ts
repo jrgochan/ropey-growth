@@ -48,6 +48,27 @@ export interface Config {
   NUTRIENT_HUE: number;
   LIGHTNESS_STEP: number;
   ANASTOMOSIS_RADIUS: number;
+  
+  // 3D Growth Parameters
+  ENABLE_3D: boolean;
+  GROWTH_HEIGHT_FACTOR: number;
+  VERTICAL_ANGLE_DRIFT_STRENGTH: number;
+  VERTICAL_WIGGLE_STRENGTH: number;
+  GRAVITY_INFLUENCE: number;
+  SUBSTRATE_LAYERS: number;
+  SUBSTRATE_LAYER_HEIGHT: number;
+  NUTRIENT_VERTICAL_DIFFUSION: number;
+  NUTRIENT_GRADIENT_STRENGTH: number;
+  SURFACE_GROWTH_BIAS: number;
+  
+  // 3D Rendering Parameters
+  SHOW_NODES_3D: boolean;
+  NODE_OPACITY: number;
+  SHOW_NUTRIENT_ENVIRONMENT: boolean;
+  NUTRIENT_POINT_SIZE: number;
+  NUTRIENT_POINT_OPACITY: number;
+  CAMERA_DISTANCE: number;
+  CAMERA_FOV: number;
 }
 
 export const config = {
@@ -60,15 +81,15 @@ export const config = {
   // -----------------------------
   // Growth Mechanics
   // -----------------------------
-  STEP_SIZE: 1.5, // Base step size for each iteration
-  GROWTH_SPEED_MULTIPLIER: 0.5, // Multiplier to control overall growth speed
-  BASE_LIFE: 300, // Base life for main tips
-  BRANCH_DECAY: 0.85, // Fraction of parent's life for branches (reduced from 0.9)
-  BRANCH_CHANCE: 0.4, // Probability of branching per step (reduced from 0.5)
-  MAX_BRANCH_DEPTH: 40, // Maximum depth for nested branches (reduced from 50)
-  ANGLE_DRIFT_STRENGTH: 0.05, // Strength of angle drift influenced by Perlin noise
-  WIGGLE_STRENGTH: 0.2, // Strength of wiggle for additional randomness
-  PERLIN_SCALE: 0.05, // Scale for Perlin noise
+  STEP_SIZE: 1.2, // Base step size for each iteration (reduced for more realistic growth)
+  GROWTH_SPEED_MULTIPLIER: 0.4, // Multiplier to control overall growth speed (reduced for more realistic growth)
+  BASE_LIFE: 400, // Base life for main tips (increased for longer main hyphae)
+  BRANCH_DECAY: 0.8, // Fraction of parent's life for branches (reduced for more realistic branching)
+  BRANCH_CHANCE: 0.3, // Probability of branching per step (reduced for more realistic branching)
+  MAX_BRANCH_DEPTH: 60, // Maximum depth for nested branches (increased for more complex networks)
+  ANGLE_DRIFT_STRENGTH: 0.08, // Strength of angle drift influenced by Perlin noise (increased for more natural growth)
+  WIGGLE_STRENGTH: 0.25, // Strength of wiggle for additional randomness (increased for more natural growth)
+  PERLIN_SCALE: 0.04, // Scale for Perlin noise (adjusted for more natural patterns)
 
   // -----------------------------
   // Environmental Parameters
@@ -135,4 +156,29 @@ export const config = {
   // Miscellaneous Parameters
   // -----------------------------
   ANASTOMOSIS_RADIUS: 0.25, // Radius within which tips fuse
+  
+  // -----------------------------
+  // 3D Growth Parameters
+  // -----------------------------
+  ENABLE_3D: true, // Enable 3D growth simulation
+  GROWTH_HEIGHT_FACTOR: 0.4, // Maximum height as a fraction of radius (increased for more realistic 3D growth)
+  VERTICAL_ANGLE_DRIFT_STRENGTH: 0.05, // Strength of vertical angle drift (increased for more natural 3D movement)
+  VERTICAL_WIGGLE_STRENGTH: 0.15, // Strength of vertical wiggle (increased for more natural 3D movement)
+  GRAVITY_INFLUENCE: 0.25, // Influence of gravity on growth direction (increased for more realistic growth)
+  SUBSTRATE_LAYERS: 4, // Number of vertical substrate layers (increased for more realistic substrate)
+  SUBSTRATE_LAYER_HEIGHT: 8, // Height of each substrate layer (reduced for finer granularity)
+  NUTRIENT_VERTICAL_DIFFUSION: 0.08, // Vertical diffusion rate of nutrients (increased for better nutrient flow)
+  NUTRIENT_GRADIENT_STRENGTH: 0.7, // Strength of nutrient gradient with depth (reduced for more even distribution)
+  SURFACE_GROWTH_BIAS: 0.6, // Bias towards growing near the surface (increased for more realistic surface growth)
+  
+  // -----------------------------
+  // 3D Rendering Parameters
+  // -----------------------------
+  SHOW_NODES_3D: true, // Show nodes in 3D visualization
+  NODE_OPACITY: 0.5, // Opacity of nodes in 3D visualization
+  SHOW_NUTRIENT_ENVIRONMENT: false, // Show nutrient environment in 3D (disabled for performance)
+  NUTRIENT_POINT_SIZE: 1.5, // Size of nutrient points in 3D visualization
+  NUTRIENT_POINT_OPACITY: 0.3, // Opacity of nutrient points
+  CAMERA_DISTANCE: 100, // Initial camera distance
+  CAMERA_FOV: 75, // Camera field of view
 };
