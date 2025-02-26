@@ -63,11 +63,11 @@ Located in `tests/performance/`, these tests measure the execution time of criti
 ### Unit Tests
 
 ```typescript
-import { describe, it, expect } from 'vitest';
-import { YourComponent } from '../../src/yourComponent';
+import { describe, it, expect } from "vitest";
+import { YourComponent } from "../../src/yourComponent";
 
-describe('YourComponent', () => {
-  it('should do something specific', () => {
+describe("YourComponent", () => {
+  it("should do something specific", () => {
     const component = new YourComponent();
     const result = component.doSomething();
     expect(result).toBe(expectedValue);
@@ -78,15 +78,15 @@ describe('YourComponent', () => {
 ### Visual Regression Tests
 
 ```typescript
-import { describe, it, expect } from 'vitest';
-import { VisualSnapshot } from '../visual/VisualSnapshot';
-import { YourRenderer } from '../../src/yourRenderer';
+import { describe, it, expect } from "vitest";
+import { VisualSnapshot } from "../visual/VisualSnapshot";
+import { YourRenderer } from "../../src/yourRenderer";
 
-describe('Visual Regression', () => {
-  it('should render consistently', () => {
+describe("Visual Regression", () => {
+  it("should render consistently", () => {
     const renderer = new YourRenderer();
     renderer.render();
-    
+
     const snapshot = new VisualSnapshot(renderer.context, width, height);
     // Compare with baseline or store as new baseline
   });

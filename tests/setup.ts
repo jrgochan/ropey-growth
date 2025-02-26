@@ -1,13 +1,13 @@
-import { beforeEach, afterEach, vi } from 'vitest';
+import { beforeEach, afterEach, vi } from "vitest";
 
 // Mock for canvas and GPU context
 class MockCanvasRenderingContext2D {
   canvas: HTMLCanvasElement;
-  fillStyle: string = '';
-  strokeStyle: string = '';
+  fillStyle: string = "";
+  strokeStyle: string = "";
   lineWidth: number = 1;
   shadowBlur: number = 0;
-  shadowColor: string = '';
+  shadowColor: string = "";
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -42,22 +42,28 @@ beforeEach(() => {
   };
 
   // Mock canvas
-  global.HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation((contextType) => {
-    if (contextType === '2d') {
-      return new MockCanvasRenderingContext2D(global.HTMLCanvasElement.prototype as any);
-    }
-    return null;
-  });
+  global.HTMLCanvasElement.prototype.getContext = vi
+    .fn()
+    .mockImplementation((contextType) => {
+      if (contextType === "2d") {
+        return new MockCanvasRenderingContext2D(
+          global.HTMLCanvasElement.prototype as any,
+        );
+      }
+      return null;
+    });
 
   // Mock for GPU.js
-  vi.mock('gpu.js', () => {
+  vi.mock("gpu.js", () => {
     return {
       GPU: vi.fn().mockImplementation(() => {
         return {
           createKernel: vi.fn().mockImplementation((fn) => {
             const mockKernel = vi.fn();
             mockKernel.setOutput = vi.fn().mockReturnValue(mockKernel);
-            mockKernel.setLoopMaxIterations = vi.fn().mockReturnValue(mockKernel);
+            mockKernel.setLoopMaxIterations = vi
+              .fn()
+              .mockReturnValue(mockKernel);
             mockKernel.setConstants = vi.fn().mockReturnValue(mockKernel);
             return mockKernel;
           }),
@@ -67,7 +73,7 @@ beforeEach(() => {
   });
 
   // Mock dat.gui
-  vi.mock('dat.gui', () => {
+  vi.mock("dat.gui", () => {
     const GUI = vi.fn().mockImplementation(() => {
       return {
         add: vi.fn().mockReturnValue({

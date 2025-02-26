@@ -1,6 +1,6 @@
 // src/mycelialNetwork.ts
 
-import { config } from './constants.js'; // Import the config object
+import { config } from "./constants.js"; // Import the config object
 
 /**
  * mycelialNetwork.ts
@@ -67,7 +67,8 @@ export class MycelialNetwork {
           if (node.resource > connectedNode.resource + 5) {
             // Threshold to prevent minimal flows (5 units minimum difference)
             const flow =
-              (node.resource - connectedNode.resource) * config.RESOURCE_FLOW_RATE;
+              (node.resource - connectedNode.resource) *
+              config.RESOURCE_FLOW_RATE;
             resourceChanges.set(id, (resourceChanges.get(id) || 0) - flow);
             resourceChanges.set(
               connId,

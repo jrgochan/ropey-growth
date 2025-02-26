@@ -263,7 +263,7 @@ export class GrowthManager {
   }
 
   /**
-   * Draws a line segment between two points with styling based on growth type and depth.
+   * Draws a line segment between two points with styling based on growth type, depth, and nutrient level.
    * @param oldX - Starting X-coordinate.
    * @param oldY - Starting Y-coordinate.
    * @param newX - Ending X-coordinate.
@@ -279,6 +279,14 @@ export class GrowthManager {
     type: GrowthType,
     depth: number,
   ) {
+    // Get nutrient level at the segment midpoint
+    const midX = (oldX + newX) / 2;
+    const midY = (oldY + newY) / 2;
+    const nutrientLevel = this.envGPU.getNutrientLevel(midX, midY);
+    
+    // Calculate nutrient intensity (0-1 range)
+    const nutrientIntensity = Math.min(1, nutrientLevel / config.BASE_NUTRIENT);
+    
     // Calculate lightness based on depth
     let calculatedLightness =
       config.BASE_LIGHTNESS + depth * config.LIGHTNESS_STEP;
@@ -291,28 +299,28 @@ export class GrowthManager {
     let lightness: number;
     let hue: number;
 
+    // Set green hue (120) with saturation based on nutrient level
+    hue = 120; // Green
+    saturation = 100 * nutrientIntensity; // 0-100% saturation based on nutrient level
+
     if (type === "main") {
       lineWidth = config.MAIN_LINE_WIDTH;
       alpha = config.MAIN_ALPHA;
-      hue = config.BASE_HUE; // 0
-      saturation = 0; // 0% for white
       lightness = calculatedLightness; // Dynamic lightness based on depth
     } else {
       lineWidth = config.SECONDARY_LINE_WIDTH;
       alpha = config.SECONDARY_ALPHA;
-      hue = config.BASE_HUE; // 0
-      saturation = 0; // 0% for white
       lightness = calculatedLightness; // Dynamic lightness based on depth
     }
     console.log(`Drawing segment: (${oldX}, ${oldY}) -> (${newX}, ${newY})`);
 
-    // Use hsla with dynamic lightness
+    // Use hsla with dynamic lightness and saturation
     this.ctx.strokeStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
     this.ctx.lineWidth = lineWidth;
 
-    // Enhance shadow for better visibility
-    this.ctx.shadowBlur = config.SHADOW_BLUR;
-    this.ctx.shadowColor = config.SHADOW_COLOR;
+    // Enhance shadow for better visibility with green glow based on nutrient level
+    this.ctx.shadowBlur = config.SHADOW_BLUR * (1 + nutrientIntensity);
+    this.ctx.shadowColor = `rgba(0, ${Math.floor(255 * nutrientIntensity)}, 0, ${0.1 + 0.4 * nutrientIntensity})`;
 
     // Draw the line segment
     this.ctx.beginPath();
@@ -320,7 +328,7 @@ export class GrowthManager {
     this.ctx.lineTo(newX, newY);
     this.ctx.stroke();
     console.log(
-      `Drew ${type} segment from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${newX.toFixed(2)}, ${newY.toFixed(2)}), Lightness: ${lightness}%`,
+      `Drew ${type} segment from (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) to (${newX.toFixed(2)}, ${newY.toFixed(2)}), Nutrient: ${nutrientLevel.toFixed(2)}, Green: ${saturation.toFixed(2)}%`,
     );
 
     // Reset shadow to prevent it from affecting other drawings

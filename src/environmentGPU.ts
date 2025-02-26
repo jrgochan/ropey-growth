@@ -9,7 +9,7 @@ import { config } from "./constants.js"; // Import the config object
 export class EnvironmentGPU {
   private width: number;
   private height: number;
-  private nutrientGrid: number[][];
+  private nutrientGrid: number[][] = [];
 
   /**
    * Constructor initializes the nutrient grid based on canvas dimensions.
@@ -179,37 +179,34 @@ export class EnvironmentGPU {
   }
 
   /**
-   * Renders the nutrient packets as little green apples on the canvas.
+   * Gets the nutrient level at a specific position.
+   * @param x - X-coordinate.
+   * @param y - Y-coordinate.
+   * @returns The nutrient level at the specified position.
+   */
+  public getNutrientLevel(x: number, y: number): number {
+    const gridX = Math.floor(x / config.ENV_GRID_CELL_SIZE);
+    const gridY = Math.floor(y / config.ENV_GRID_CELL_SIZE);
+
+    if (
+      gridX >= 0 &&
+      gridX < this.nutrientGrid.length &&
+      gridY >= 0 &&
+      gridY < this.nutrientGrid[0].length
+    ) {
+      return this.nutrientGrid[gridX][gridY];
+    }
+    return 0;
+  }
+
+  /**
+   * Renders the nutrient grid as a visualization.
    * @param ctx - The 2D rendering context of the main canvas.
    */
   public renderNutrientPackets(ctx: CanvasRenderingContext2D) {
-    const cols = this.nutrientGrid[0].length;
-    const rows = this.nutrientGrid.length;
-
-    const cellWidth = this.width / cols;
-    const cellHeight = this.height / rows;
-
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        if (this.nutrientGrid[row][col] > 0) {
-          // Draw a green apple at the center of each cell with nutrients
-          const x = col * cellWidth + cellWidth / 2;
-          const y = row * cellHeight + cellHeight / 2;
-
-          ctx.fillStyle = "green";
-          ctx.beginPath();
-          ctx.arc(x, y, Math.min(cellWidth, cellHeight) / 4, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Draw the apple stem
-          ctx.strokeStyle = "brown";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(x, y - Math.min(cellWidth, cellHeight) / 4);
-          ctx.lineTo(x, y - Math.min(cellWidth, cellHeight) / 2);
-          ctx.stroke();
-        }
-      }
-    }
+    // This method is kept for compatibility with existing code
+    // but no longer renders apples. The nutrient visualization
+    // is now handled by making the hyphae trunks glow green.
+    console.log(`Nutrient visualization updated to glow in hyphae trunks.`);
   }
 }
