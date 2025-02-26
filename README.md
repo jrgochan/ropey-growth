@@ -1,3 +1,5 @@
+Testing AI with a mycelial network project.
+
 Below is a **comprehensive** `README.md` describing the **iterative rhizomorphic mycelium** project that incorporates **resource flow**, **anastomosis**, **nutrient consumption**, and **environment gradients**, aiming to be more **biologically informed** than simpler static line approaches.
 
 ---
