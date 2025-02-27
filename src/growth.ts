@@ -18,6 +18,7 @@ export interface HyphaTip {
   depth: number;
   growthType: GrowthType;
   resource: number; // Tracks the resource available to the tip
+  nodeId?: number; // Added to track the corresponding network node ID
 }
 
 /**
@@ -144,12 +145,18 @@ export class GrowthManager {
     }
     
     // Clone the initial tips to the active tips array
-    this.tips = this.initTips.map(tip => ({...tip}));
-
-    // Create network nodes for each main branch
-    this.tips.forEach((tip) => {
-      const nodeId = this.network.createNode(tip.x, tip.y, tip.z, tip.resource);
+    this.tips = this.initTips.map(tip => {
+      // Create a fresh copy of the tip
+      const newTip = {...tip};
+      
+      // Create the initial network nodes and store their IDs
+      const nodeId = this.network.createNode(newTip.x, newTip.y, newTip.z, newTip.resource);
+      newTip.nodeId = nodeId;
+      
+      return newTip;
     });
+
+    // We've already created network nodes when cloning tips, so no need to do it again
     
     // If we have a 3D renderer, clear it
     if (this.renderer3D) {
@@ -487,8 +494,19 @@ export class GrowthManager {
         // Decrement life
         tip.life--;
 
+        // Track the last nodeId for connecting branch nodes
+        const prevNodeId = tip.nodeId;
+        
         // Create a network node for this position
         const nodeId = this.network.createNode(tip.x, tip.y, tip.z, tip.resource);
+        
+        // Store the nodeId in the tip for future connections
+        tip.nodeId = nodeId;
+        
+        // Connect to the previous node if it exists (creates the network graph)
+        if (prevNodeId !== undefined) {
+          this.network.connectNodes(prevNodeId, nodeId);
+        }
         
         // Render the segment in 2D (projection)
         this.drawSegment(oldX, oldY, tip.x, tip.y, tip.growthType, tip.depth);
@@ -514,6 +532,16 @@ export class GrowthManager {
             tip.depth,
             nutrientIntensity
           );
+          
+          // Show network connection visually in the 3D renderer
+          if (config.NETWORK_VISUALIZATION && prevNodeId !== undefined) {
+            this.renderer3D.addNetworkConnection(
+              `net-${prevNodeId}-${nodeId}`,
+              startPoint,
+              endPoint,
+              tip.resource / config.INITIAL_RESOURCE_PER_TIP
+            );
+          }
         }
 
         // Handle branching with optimized random check
@@ -601,6 +629,15 @@ export class GrowthManager {
               continue;
             }
 
+            // Create the new branch node in the network
+            const branchNodeId = this.network.createNode(spawnX, spawnY, spawnZ, config.INITIAL_RESOURCE_PER_TIP * 0.8);
+            
+            // Connect to the parent tip's node
+            if (tip.nodeId !== undefined) {
+              this.network.connectNodes(tip.nodeId, branchNodeId);
+            }
+            
+            // Create the new tip with the node ID already set
             const newTip: HyphaTip = {
               x: spawnX,
               y: spawnY,
@@ -614,6 +651,7 @@ export class GrowthManager {
               depth: tip.depth + 1,
               growthType: "secondary",
               resource: config.INITIAL_RESOURCE_PER_TIP * 0.8,
+              nodeId: branchNodeId // Store the node ID in the tip
             };
 
             newTips.push(newTip);

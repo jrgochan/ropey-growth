@@ -18,6 +18,7 @@ export class Renderer3D {
   // Store references to objects for updating
   private hyphaeSegments: Map<string, THREE.Line> = new Map();
   private nodeObjects: Map<number, THREE.Mesh> = new Map();
+  private networkConnections: Map<string, THREE.Line> = new Map();
   
   // Material for hyphal segments
   private mainHyphaeMaterial: THREE.LineBasicMaterial;
@@ -302,6 +303,47 @@ export class Renderer3D {
   }
   
   /**
+   * Add a network connection between nodes to visualize the underlying graph
+   * @param id Unique connection identifier
+   * @param startPoint Start point of the connection
+   * @param endPoint End point of the connection
+   * @param resourceLevel Resource level for coloring (0-1)
+   */
+  public addNetworkConnection(
+    id: string,
+    startPoint: { x: number; y: number; z: number },
+    endPoint: { x: number; y: number; z: number },
+    resourceLevel: number = 0.5
+  ): void {
+    // Check if this connection already exists
+    if (this.networkConnections.has(id)) return;
+    
+    // Create points array
+    const points = [
+      new THREE.Vector3(startPoint.x, startPoint.y, startPoint.z),
+      new THREE.Vector3(endPoint.x, endPoint.y, endPoint.z)
+    ];
+    
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    
+    // Create a material with blue color (more blue with higher resources)
+    const intensity = Math.min(1, Math.max(0.2, resourceLevel));
+    const material = new THREE.LineBasicMaterial({
+      color: new THREE.Color(`rgb(100, 100, ${Math.round(200 + 55 * intensity)})`),
+      linewidth: 0.5,
+      opacity: 0.3 * intensity,
+      transparent: true
+    });
+    
+    // Create line and add to scene
+    const line = new THREE.Line(geometry, material);
+    this.scene.add(line);
+    
+    // Store reference
+    this.networkConnections.set(id, line);
+  }
+
+  /**
    * Clear all objects from the scene
    */
   public clear(): void {
@@ -320,6 +362,14 @@ export class Renderer3D {
       (node.material as THREE.Material).dispose();
     }
     this.nodeObjects.clear();
+    
+    // Remove all network connections
+    for (const connection of this.networkConnections.values()) {
+      this.scene.remove(connection);
+      connection.geometry.dispose();
+      (connection.material as THREE.Material).dispose();
+    }
+    this.networkConnections.clear();
     
     // Remove nutrient grid
     if (this.nutrientGrid) {

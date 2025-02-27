@@ -526,6 +526,10 @@ const initGUI = () => {
     .name("Node Opacity")
     .onChange(resetSimulation);
   render3DFolder
+    .add(config, "NETWORK_VISUALIZATION")
+    .name("Show Network")
+    .onChange(resetSimulation);
+  render3DFolder
     .add(config, "SHOW_NUTRIENT_ENVIRONMENT")
     .name("Show Nutrients")
     .onChange(resetSimulation);

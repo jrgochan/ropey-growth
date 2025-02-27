@@ -31,6 +31,7 @@ export interface Config {
   REPLENISHMENT_AMOUNT: number;
   INITIAL_RESOURCE_PER_TIP: number;
   RESOURCE_FLOW_RATE: number;
+  NETWORK_VISUALIZATION: boolean;
   TIME_LAPSE_FACTOR: number;
   SECONDARY_FAN_COUNT: number;
   WIDER_SECONDARY_ANGLE: number;
@@ -116,7 +117,8 @@ export const config = {
   // Mycelial Network Parameters
   // -----------------------------
   INITIAL_RESOURCE_PER_TIP: 3000.0, // Increased initial resources for better coverage
-  RESOURCE_FLOW_RATE: 3.0, // Increased flow rate for better resource distribution
+  RESOURCE_FLOW_RATE: 2.0, // Balanced flow rate for more stable network
+  NETWORK_VISUALIZATION: true, // Enable visualization of network connections
 
   // -----------------------------
   // Growth Simulation Parameters
