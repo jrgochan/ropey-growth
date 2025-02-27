@@ -202,9 +202,10 @@ export class MycelialNetwork {
   /**
    * Resets the network by clearing all nodes and connections.
    */
-  public resetNetwork(): void {
+  public reset(): void {
     this.nodes.clear();
     this.nextId = 0;
     this.activeNodes.clear();
+    this.connectionCache.clear();
   }
 }

@@ -46,6 +46,9 @@ export class GrowthManager {
   private frameTimes: number[] = [];
   private adaptiveStepCount: number = 1;
   
+  // For optimizing reset operations
+  private initTips: HyphaTip[] = [];
+  
   // 3D renderer reference (optional)
   private renderer3D: any = null;
 
@@ -101,42 +104,47 @@ export class GrowthManager {
     this.colorCache.clear();
     this.frameTimes = [];
     this.adaptiveStepCount = 1;
-
-    // Create main trunks from the center with a more uniform 3D distribution
-    // Use fibonacci spiral on a sphere for even distribution
-    const goldenRatio = (1 + Math.sqrt(5)) / 2;
     
-    for (let i = 0; i < config.MAIN_BRANCH_COUNT; i++) {
-      // Use fibonacci spiral distribution on a sphere for uniform initial directions
-      const theta = 2 * Math.PI * i / goldenRatio; // Azimuthal angle
-      const phi = Math.acos(1 - 2 * (i + 0.5) / config.MAIN_BRANCH_COUNT); // Elevation angle
+    // Check if we have cached initial tips - this optimizes resets
+    if (this.initTips.length === 0 || this.initTips.length !== config.MAIN_BRANCH_COUNT) {
+      this.initTips = []; // Clear if count changed
       
-      // Convert spherical coordinates to Cartesian direction vector
-      const dirX = Math.sin(phi) * Math.cos(theta);
-      const dirY = Math.sin(phi) * Math.sin(theta);
-      const dirZ = Math.cos(phi);
+      // Create main trunks from the center with a more uniform 3D distribution
+      // Use fibonacci spiral on a sphere for even distribution
+      const goldenRatio = (1 + Math.sqrt(5)) / 2;
       
-      // Convert direction vector to angles
-      const angle = Math.atan2(dirY, dirX);
-      const verticalAngle = Math.asin(dirZ);
-      
-      // Start at the origin (0,0,0) of 3D space
-      const newTip: HyphaTip = {
-        x: 0,
-        y: 0,
-        z: 0,
-        angle,
-        verticalAngle,
-        life: config.BASE_LIFE,
-        depth: 0,
-        growthType: "main",
-        resource: config.INITIAL_RESOURCE_PER_TIP,
-      };
-      this.tips.push(newTip);
-      
-      // Log for testing purposes
-      console.log(`Initialized main tip ${i}: x=0, y=0, z=0, angle=${angle.toFixed(2)}, verticalAngle=${verticalAngle.toFixed(2)}`);
+      for (let i = 0; i < config.MAIN_BRANCH_COUNT; i++) {
+        // Use fibonacci spiral distribution on a sphere for uniform initial directions
+        const theta = 2 * Math.PI * i / goldenRatio; // Azimuthal angle
+        const phi = Math.acos(1 - 2 * (i + 0.5) / config.MAIN_BRANCH_COUNT); // Elevation angle
+        
+        // Convert spherical coordinates to Cartesian direction vector
+        const dirX = Math.sin(phi) * Math.cos(theta);
+        const dirY = Math.sin(phi) * Math.sin(theta);
+        const dirZ = Math.cos(phi);
+        
+        // Convert direction vector to angles
+        const angle = Math.atan2(dirY, dirX);
+        const verticalAngle = Math.asin(dirZ);
+        
+        // Start at the origin (0,0,0) of 3D space
+        const newTip: HyphaTip = {
+          x: 0,
+          y: 0,
+          z: 0,
+          angle,
+          verticalAngle,
+          life: config.BASE_LIFE,
+          depth: 0,
+          growthType: "main",
+          resource: config.INITIAL_RESOURCE_PER_TIP,
+        };
+        this.initTips.push(newTip);
+      }
     }
+    
+    // Clone the initial tips to the active tips array
+    this.tips = this.initTips.map(tip => ({...tip}));
 
     // Create network nodes for each main branch
     this.tips.forEach((tip) => {

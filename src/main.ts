@@ -46,6 +46,29 @@ instructions.innerHTML = `
 `;
 document.body.appendChild(instructions);
 
+// Add pause/resume button
+const pauseButton = document.createElement("button");
+pauseButton.id = "pause-button";
+pauseButton.textContent = "Pause";
+pauseButton.style.position = "absolute";
+pauseButton.style.top = "10px";
+pauseButton.style.left = "10px";
+pauseButton.style.padding = "8px 16px";
+pauseButton.style.backgroundColor = "#FFCC00"; // Yellow
+pauseButton.style.color = "#000000";
+pauseButton.style.border = "none";
+pauseButton.style.borderRadius = "5px";
+pauseButton.style.fontFamily = "Arial, sans-serif";
+pauseButton.style.fontSize = "16px";
+pauseButton.style.fontWeight = "bold";
+pauseButton.style.cursor = "pointer";
+pauseButton.style.zIndex = "1001";
+pauseButton.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)";
+document.body.appendChild(pauseButton);
+
+// Add pause state variable
+let isPaused = false;
+
 // Initialize 3D renderer
 let renderer3D: Renderer3D | null = null;
 if (config.ENABLE_3D) {
@@ -65,44 +88,66 @@ resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
 function resetSimulation() {
-  // Clear existing growth and environment
-  if (growth) {
-    growth.clear();
-  }
-
-  // Reinitialize components
-  perlin = new Perlin();
-  envGPU = new EnvironmentGPU(canvas.width, canvas.height);
-  network = new MycelialNetwork();
+  // Temporarily pause the simulation during reset for better performance
+  const wasPaused = isPaused;
+  isPaused = true;
   
-  // Reset 3D renderer if enabled
-  if (config.ENABLE_3D && renderer3D) {
-    renderer3D.clear();
-  }
+  // Use requestAnimationFrame to ensure we don't block the UI
+  requestAnimationFrame(() => {
+    // Clear existing growth and environment
+    if (growth) {
+      growth.clear();
+    }
 
-  // Reset growth manager with updated configuration
-  growth = new GrowthManager(
-    ctx as CanvasRenderingContext2D,
-    canvas.width,
-    canvas.height,
-    canvas.width / 2,
-    canvas.height / 2,
-    perlin,
-    envGPU,
-    network,
-    renderer3D, // Pass the 3D renderer
-  );
-  growth.init();
+    // Reinitialize components (reuse existing instances to improve performance)
+    if (!perlin) perlin = new Perlin();
+    if (!envGPU) envGPU = new EnvironmentGPU(canvas.width, canvas.height);
+    else envGPU.reset(); // Just reset the existing instance
+    
+    if (!network) network = new MycelialNetwork();
+    else network.reset(); // Just reset the existing instance
+    
+    // Reset 3D renderer if enabled
+    if (config.ENABLE_3D && renderer3D) {
+      renderer3D.clear();
+    }
 
-  // Visualize the nutrient environment in 3D if enabled
-  if (config.ENABLE_3D && renderer3D && config.SHOW_NUTRIENT_ENVIRONMENT) {
-    renderer3D.visualizeNutrientEnvironment(
-      envGPU.getNutrientGrid(),
-      config.ENV_GRID_CELL_SIZE
-    );
-  }
+    // Reset growth manager with updated configuration
+    // If growth manager already exists, we can reuse it
+    if (!growth) {
+      growth = new GrowthManager(
+        ctx as CanvasRenderingContext2D,
+        canvas.width,
+        canvas.height,
+        canvas.width / 2,
+        canvas.height / 2,
+        perlin,
+        envGPU,
+        network,
+        renderer3D, // Pass the 3D renderer
+      );
+    }
+    
+    // Initialize growth
+    growth.init();
 
-  console.log("Simulation reset.");
+    // Visualize the nutrient environment in 3D if enabled
+    if (config.ENABLE_3D && renderer3D && config.SHOW_NUTRIENT_ENVIRONMENT) {
+      renderer3D.visualizeNutrientEnvironment(
+        envGPU.getNutrientGrid(),
+        config.ENV_GRID_CELL_SIZE
+      );
+    }
+    
+    // Restore pause state (unless it was already paused)
+    isPaused = wasPaused;
+    if (!isPaused) {
+      pauseButton.textContent = "Pause";
+      pauseButton.style.backgroundColor = "#FFCC00";
+    }
+
+    console.log("Simulation reset complete.");
+  });
 }
 
 // Global references
@@ -155,7 +200,14 @@ const setup = () => {
  * Animation loop to update and render the simulation.
  */
 const animate = () => {
-  growth.updateAndDraw(Date.now());
+  if (!isPaused) {
+    growth.updateAndDraw(Date.now());
+  } else {
+    // When paused, still render the 3D scene but don't update the simulation
+    if (renderer3D) {
+      renderer3D.render();
+    }
+  }
   requestAnimationFrame(animate);
 };
 
@@ -198,94 +250,107 @@ const initGUI = () => {
 
   // Canvas & Growth Parameters
   const growthFolder = gui.addFolder("Growth Parameters");
+  
+  // Debounce function to prevent frequent resets
+  let resetTimeout: number | null = null;
+  const debouncedReset = (delay = 300) => {
+    if (resetTimeout) {
+      clearTimeout(resetTimeout);
+    }
+    resetTimeout = setTimeout(() => {
+      resetSimulation();
+    }, delay) as unknown as number;
+  };
+  
   growthFolder
     .add(config, "GROWTH_RADIUS_FACTOR", 0.0, 1.0)
     .step(0.01)
     .name("Growth Radius Factor")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "MAIN_BRANCH_COUNT", 1, 100)
     .step(1)
     .name("Main Branch Count")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "STEP_SIZE", 0, 5)
     .step(0.1)
     .name("Step Size")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "GROWTH_SPEED_MULTIPLIER", 0.0, 1.0)
     .step(0.1)
     .name("Growth Speed")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "BASE_LIFE", 0, 5000)
     .step(100)
     .name("Base Life")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "BRANCH_DECAY", 0.0, 1.0)
     .step(0.05)
     .name("Branch Decay")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "BRANCH_CHANCE", 0.0, 1.0)
     .step(0.01)
     .name("Branch Chance")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "MAX_BRANCH_DEPTH", 0, 1000)
     .step(1)
     .name("Max Branch Depth")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "ANGLE_DRIFT_STRENGTH", 0.0, 0.2)
     .step(0.01)
     .name("Angle Drift")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "WIGGLE_STRENGTH", 0.0, 1.0)
     .step(0.05)
     .name("Wiggle Strength")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder
     .add(config, "PERLIN_SCALE", 0.01, 0.2)
     .step(0.01)
     .name("Perlin Scale")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growthFolder.open();
   
   // 3D Growth Parameters
   const growth3DFolder = gui.addFolder("3D Growth Parameters");
+
   growth3DFolder
     .add(config, "ENABLE_3D")
     .name("Enable 3D Growth")
-    .onChange(resetSimulation);
+    .onChange(() => resetSimulation()); // Immediate reset for binary toggles
   growth3DFolder
     .add(config, "GROWTH_HEIGHT_FACTOR", 0.1, 2.0)
     .step(0.1)
     .name("Growth Height Factor")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growth3DFolder
     .add(config, "VERTICAL_ANGLE_DRIFT_STRENGTH", 0.0, 0.2)
     .step(0.01)
     .name("Vertical Angle Drift")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growth3DFolder
     .add(config, "VERTICAL_WIGGLE_STRENGTH", 0.0, 1.0)
     .step(0.05)
     .name("Vertical Wiggle")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growth3DFolder
     .add(config, "GRAVITY_INFLUENCE", 0.0, 1.0)
     .step(0.05)
     .name("Gravity Influence")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growth3DFolder
     .add(config, "SURFACE_GROWTH_BIAS", 0.0, 1.0)
     .step(0.05)
     .name("Surface Growth Bias")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   growth3DFolder.open();
 
   // Environmental Parameters
@@ -294,22 +359,22 @@ const initGUI = () => {
     .add(config, "ENV_GRID_CELL_SIZE", 0.5, 5)
     .step(0.5)
     .name("Grid Cell Size")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   envFolder
     .add(config, "BASE_NUTRIENT", 50, 200)
     .step(10)
     .name("Base Nutrient")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   envFolder
     .add(config, "NUTRIENT_DIFFUSION", 0.0, 1.0)
     .step(0.05)
     .name("Nutrient Diffusion")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   envFolder
     .add(config, "NUTRIENT_CONSUMPTION_RATE", 0.1, 5.0)
     .step(0.1)
     .name("Nutrient Consumption")
-    .onChange(resetSimulation);
+    .onChange(() => debouncedReset());
   envFolder.open();
 
   // Nutrient Pockets Parameters
@@ -499,6 +564,21 @@ const initGUI = () => {
 
   gui.close();
 };
+
+// Set up event listener for pause button
+pauseButton.addEventListener('click', () => {
+  isPaused = !isPaused;
+  
+  if (isPaused) {
+    pauseButton.textContent = "Resume";
+    pauseButton.style.backgroundColor = "#88CC00"; // Greenish-yellow for resume
+    console.log("Simulation paused");
+  } else {
+    pauseButton.textContent = "Pause";
+    pauseButton.style.backgroundColor = "#FFCC00"; // Yellow for pause
+    console.log("Simulation resumed");
+  }
+});
 
 setup();
 initGUI();

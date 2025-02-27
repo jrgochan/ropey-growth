@@ -499,4 +499,24 @@ export class EnvironmentGPU {
     // but no longer renders apples. The nutrient visualization
     // is now handled by making the hyphae trunks glow green.
   }
+  
+  /**
+   * Reset the environment to initial state
+   * This avoids recreating the full environment object when parameters change
+   */
+  public reset(): void {
+    // Clear existing data
+    this.nutrientGrid = [];
+    this.activeCells.clear();
+    this.neighborCache.clear();
+    
+    // Recalculate dimensions (in case GROWTH_HEIGHT_FACTOR changed)
+    const radius = Math.min(this.width, this.height) * config.GROWTH_RADIUS_FACTOR;
+    this.depth = Math.ceil(radius * config.GROWTH_HEIGHT_FACTOR * 2);
+    
+    // Reinitialize the grid
+    this.initializeNutrientGrid();
+    
+    console.log(`EnvironmentGPU reset with dimensions ${this.width}x${this.height}x${this.depth}`);
+  }
 }
