@@ -102,18 +102,29 @@ export class GrowthManager {
     this.frameTimes = [];
     this.adaptiveStepCount = 1;
 
-    // Create main trunks from the center
+    // Create main trunks from the center with a more uniform 3D distribution
+    // Use fibonacci spiral on a sphere for even distribution
+    const goldenRatio = (1 + Math.sqrt(5)) / 2;
+    
     for (let i = 0; i < config.MAIN_BRANCH_COUNT; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      // For 3D growth, add a slight vertical angle bias based on position
-      const verticalAngle = (Math.random() - 0.5) * Math.PI * 0.2; // Small random vertical angle
+      // Use fibonacci spiral distribution on a sphere for uniform initial directions
+      const theta = 2 * Math.PI * i / goldenRatio; // Azimuthal angle
+      const phi = Math.acos(1 - 2 * (i + 0.5) / config.MAIN_BRANCH_COUNT); // Elevation angle
+      
+      // Convert spherical coordinates to Cartesian direction vector
+      const dirX = Math.sin(phi) * Math.cos(theta);
+      const dirY = Math.sin(phi) * Math.sin(theta);
+      const dirZ = Math.cos(phi);
+      
+      // Convert direction vector to angles
+      const angle = Math.atan2(dirY, dirX);
+      const verticalAngle = Math.asin(dirZ);
       
       // Start at the origin (0,0,0) of 3D space
-      
       const newTip: HyphaTip = {
-        x: 0, // Start at origin instead of centerX
-        y: 0, // Start at origin instead of centerY
-        z: 0, // Start at origin in Z dimension
+        x: 0,
+        y: 0,
+        z: 0,
         angle,
         verticalAngle,
         life: config.BASE_LIFE,
@@ -365,10 +376,17 @@ export class GrowthManager {
         );
         tip.resource -= consumed;
 
-        // If resource is depleted, the tip dies
+        // Modified resource depletion to encourage more uniform growth
+        // Instead of immediate death, gradually reduce growth capability based on resource level
         if (tip.resource <= 0) {
-          tip.life = 0;
-          continue;
+          // Let tips continue with a small chance, to help fill in gaps in the sphere
+          if (Math.random() < 0.2) {
+            // Small resource boost for struggling tips to keep growing
+            tip.resource = config.INITIAL_RESOURCE_PER_TIP * 0.05;
+          } else {
+            tip.life = 0;
+            continue;
+          }
         }
 
         const oldX = tip.x;
@@ -423,16 +441,29 @@ export class GrowthManager {
         // Vertical movement is determined by sine of vertical angle
         tip.z += (sinVerticalAngle * actualStepSize + verticalWiggleFactor) * growthFactor;
         
-        // Apply growth bias to encourage more horizontal growth near the origin
-        // This creates a more spherical growth pattern from the origin
-        if (Math.abs(tip.z) < this.growthHeight * 0.1) {
-          const levelBias = Math.random() * config.SURFACE_GROWTH_BIAS;
+        // For uniformly distributed 3D growth, remove the bias that favors horizontal growth
+        // Instead, add a slight correction to maintain spherical shape
+        
+        // Get normalized direction vector from origin to tip
+        const distance = Math.sqrt(tip.x * tip.x + tip.y * tip.y + tip.z * tip.z);
+        if (distance > 0) {
+          const normalizedX = tip.x / distance;
+          const normalizedY = tip.y / distance;
+          const normalizedZ = tip.z / distance;
           
-          // If growing away from the origin plane (either up or down), reduce the vertical angle
-          if ((tip.verticalAngle > 0 && tip.z >= 0) || 
-              (tip.verticalAngle < 0 && tip.z <= 0)) {
-            tip.verticalAngle *= (1 - levelBias);
-          }
+          // Apply a small correction to maintain the direction away from origin
+          // This helps maintain uniform radial growth
+          const radialBiasStrength = 0.1; // Small bias to maintain radial direction
+          
+          // Adjust angle slightly towards the radial direction
+          const targetAngle = Math.atan2(normalizedY, normalizedX);
+          const angleDiff = (targetAngle - tip.angle) % (2 * Math.PI);
+          const correctedAngleDiff = (angleDiff > Math.PI) ? angleDiff - 2 * Math.PI : (angleDiff < -Math.PI) ? angleDiff + 2 * Math.PI : angleDiff;
+          tip.angle += correctedAngleDiff * radialBiasStrength;
+          
+          // Adjust vertical angle slightly towards the radial direction
+          const targetVerticalAngle = Math.asin(normalizedZ);
+          tip.verticalAngle += (targetVerticalAngle - tip.verticalAngle) * radialBiasStrength;
         }
         
         // For a spherical growth pattern, we don't need to enforce specific z bounds
@@ -492,32 +523,62 @@ export class GrowthManager {
           );
           
           for (let i = 0; i < branchCount; i++) {
-            // More realistic branching angles - mycelial branches tend to form at more acute angles
-            // Horizontal angle offset - biased towards perpendicular branching
-            let angleOffset;
-            if (Math.random() < 0.7) {
-              // 70% chance of branching at a more perpendicular angle (more realistic for fungi)
-              angleOffset = (Math.random() < 0.5 ? 1 : -1) * (Math.PI/4 + Math.random() * Math.PI/4);
-            } else {
-              // 30% chance of more random angle
-              angleOffset = (Math.random() - 0.5) * config.WIDER_SECONDARY_ANGLE;
-            }
-            const newAngle = tip.angle + angleOffset;
+            // For more uniform 3D branching, use spherical coordinate system
+            // Create random branch direction with uniform distribution in 3D space
             
-            // Vertical angle offset - branches tend to grow more horizontally than the parent
-            // This is more realistic for mycelial networks which tend to spread horizontally
-            let verticalAngleOffset;
-            if (tip.verticalAngle > 0 && Math.random() < 0.6) {
-              // If parent is growing upward, branch tends to be more horizontal
-              verticalAngleOffset = -Math.random() * tip.verticalAngle * 0.8;
-            } else if (tip.verticalAngle < 0 && Math.random() < 0.6) {
-              // If parent is growing downward, branch tends to be more horizontal
-              verticalAngleOffset = Math.random() * Math.abs(tip.verticalAngle) * 0.8;
+            // Generate random direction relative to the parent direction
+            // Use spherical coordinates with the parent's direction as the "north pole"
+            
+            // Random angle around the parent direction axis (full circle)
+            const branchAxisAngle = Math.random() * 2 * Math.PI;
+            
+            // Random deflection angle from parent direction (biased towards larger angles)
+            // Using distribution that favors angles closer to 90 degrees (perpendicular)
+            const branchDeflectionAngle = Math.acos(Math.pow(Math.random(), 0.5)) * 0.8;
+            
+            // Convert these angles to a 3D direction vector in the parent's reference frame
+            const sinDeflection = Math.sin(branchDeflectionAngle);
+            const branchDirX = sinDeflection * Math.cos(branchAxisAngle);
+            const branchDirY = sinDeflection * Math.sin(branchAxisAngle);
+            const branchDirZ = Math.cos(branchDeflectionAngle);
+            
+            // We need to rotate this vector from the parent's reference frame
+            // to the world reference frame.
+            // First, calculate parent's direction vector
+            const parentDirX = Math.cos(tip.angle) * Math.cos(tip.verticalAngle);
+            const parentDirY = Math.sin(tip.angle) * Math.cos(tip.verticalAngle);
+            const parentDirZ = Math.sin(tip.verticalAngle);
+            
+            // For simplicity, we'll use a simplified rotation approach
+            // (a full quaternion rotation would be more accurate but complex)
+            
+            // Create perpendicular vectors for a simplified basis
+            const perpVec1 = { x: -parentDirY, y: parentDirX, z: 0 };
+            // Normalize
+            const perpLength = Math.sqrt(perpVec1.x * perpVec1.x + perpVec1.y * perpVec1.y);
+            if (perpLength > 0.001) {
+                perpVec1.x /= perpLength;
+                perpVec1.y /= perpLength;
             } else {
-              // Random variation
-              verticalAngleOffset = (Math.random() - 0.5) * Math.PI * 0.2;
+                perpVec1.x = 1; // Fallback for edge case
+                perpVec1.y = 0;
             }
-            const newVerticalAngle = tip.verticalAngle + verticalAngleOffset;
+            
+            // Second perpendicular vector using cross product
+            const perpVec2 = {
+                x: parentDirY * perpVec1.z - parentDirZ * perpVec1.y,
+                y: parentDirZ * perpVec1.x - parentDirX * perpVec1.z,
+                z: parentDirX * perpVec1.y - parentDirY * perpVec1.x
+            };
+            
+            // Combine to get the branch direction in world space
+            const worldBranchDirX = branchDirZ * parentDirX + branchDirX * perpVec1.x + branchDirY * perpVec2.x;
+            const worldBranchDirY = branchDirZ * parentDirY + branchDirX * perpVec1.y + branchDirY * perpVec2.y;
+            const worldBranchDirZ = branchDirZ * parentDirZ + branchDirX * perpVec1.z + branchDirY * perpVec2.z;
+            
+            // Convert the world direction to angles
+            const newAngle = Math.atan2(worldBranchDirY, worldBranchDirX);
+            const newVerticalAngle = Math.asin(Math.max(-1, Math.min(1, worldBranchDirZ)));
 
             // Slightly longer spawn distance for more visible branching
             const spawnDistance = config.STEP_SIZE * config.GROWTH_SPEED_MULTIPLIER * 1.2;

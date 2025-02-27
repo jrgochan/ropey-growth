@@ -75,18 +75,18 @@ export const config = {
   // -----------------------------
   // Canvas & Growth Parameters
   // -----------------------------
-  GROWTH_RADIUS_FACTOR: 0.35, // Increased radius for more visible 3D growth from origin
-  MAIN_BRANCH_COUNT: 12, // Increased number of main branches for better 3D coverage
+  GROWTH_RADIUS_FACTOR: 0.35, // Radius for 3D growth from origin
+  MAIN_BRANCH_COUNT: 24, // Increased number of main branches for more uniform 3D coverage
 
   // -----------------------------
   // Growth Mechanics
   // -----------------------------
-  STEP_SIZE: 1.2, // Base step size for each iteration (reduced for more realistic growth)
-  GROWTH_SPEED_MULTIPLIER: 0.4, // Multiplier to control overall growth speed (reduced for more realistic growth)
-  BASE_LIFE: 400, // Base life for main tips (increased for longer main hyphae)
-  BRANCH_DECAY: 0.8, // Fraction of parent's life for branches (reduced for more realistic branching)
-  BRANCH_CHANCE: 0.3, // Probability of branching per step (reduced for more realistic branching)
-  MAX_BRANCH_DEPTH: 60, // Maximum depth for nested branches (increased for more complex networks)
+  STEP_SIZE: 1.0, // Reduced step size for finer, more dense growth
+  GROWTH_SPEED_MULTIPLIER: 0.5, // Increased growth speed for better visualization
+  BASE_LIFE: 500, // Increased life for longer hyphae and better coverage
+  BRANCH_DECAY: 0.9, // Increased to allow secondary branches to live longer
+  BRANCH_CHANCE: 0.25, // Balanced branching probability
+  MAX_BRANCH_DEPTH: 80, // Increased depth for more complex networks
   ANGLE_DRIFT_STRENGTH: 0.08, // Strength of angle drift influenced by Perlin noise (increased for more natural growth)
   WIGGLE_STRENGTH: 0.25, // Strength of wiggle for additional randomness (increased for more natural growth)
   PERLIN_SCALE: 0.04, // Scale for Perlin noise (adjusted for more natural patterns)
@@ -115,8 +115,8 @@ export const config = {
   // -----------------------------
   // Mycelial Network Parameters
   // -----------------------------
-  INITIAL_RESOURCE_PER_TIP: 2000.0, // Initial resource for each hypha tip
-  RESOURCE_FLOW_RATE: 2.0, // Fraction of resource that flows each tick along edges (reduced from 2.5)
+  INITIAL_RESOURCE_PER_TIP: 3000.0, // Increased initial resources for better coverage
+  RESOURCE_FLOW_RATE: 3.0, // Increased flow rate for better resource distribution
 
   // -----------------------------
   // Growth Simulation Parameters
@@ -161,15 +161,15 @@ export const config = {
   // 3D Growth Parameters
   // -----------------------------
   ENABLE_3D: true, // Enable 3D growth simulation
-  GROWTH_HEIGHT_FACTOR: 0.6, // Maximum height as a fraction of radius (increased for more 3D volume)
-  VERTICAL_ANGLE_DRIFT_STRENGTH: 0.08, // Increased vertical angle drift for more 3D spread
-  VERTICAL_WIGGLE_STRENGTH: 0.2, // Increased vertical wiggle for more 3D movement
-  GRAVITY_INFLUENCE: 0.15, // Reduced gravity influence to allow more upward growth
-  SUBSTRATE_LAYERS: 6, // Increased number of substrate layers for more vertical space
-  SUBSTRATE_LAYER_HEIGHT: 8, // Height of each substrate layer
-  NUTRIENT_VERTICAL_DIFFUSION: 0.1, // Increased vertical diffusion for better nutrient flow
-  NUTRIENT_GRADIENT_STRENGTH: 0.5, // Reduced gradient strength for more even distribution
-  SURFACE_GROWTH_BIAS: 0.4, // Reduced bias to allow more vertical exploration
+  GROWTH_HEIGHT_FACTOR: 1.0, // Equal height and radius for perfect spherical growth
+  VERTICAL_ANGLE_DRIFT_STRENGTH: 0.05, // Reduced drift for more predictable uniform growth 
+  VERTICAL_WIGGLE_STRENGTH: 0.05, // Reduced wiggle for more consistent uniform growth
+  GRAVITY_INFLUENCE: 0, // Eliminated gravity influence for truly uniform growth in all directions
+  SUBSTRATE_LAYERS: 10, // Increased layers for better 3D coverage
+  SUBSTRATE_LAYER_HEIGHT: 5, // Finer substrate resolution
+  NUTRIENT_VERTICAL_DIFFUSION: 0.2, // Increased vertical diffusion for more even nutrient distribution
+  NUTRIENT_GRADIENT_STRENGTH: 0, // Eliminated gradient to ensure uniform nutrients in all directions
+  SURFACE_GROWTH_BIAS: 0, // Eliminated surface bias to allow truly uniform growth in all directions
   
   // -----------------------------
   // 3D Rendering Parameters
@@ -179,6 +179,6 @@ export const config = {
   SHOW_NUTRIENT_ENVIRONMENT: false, // Show nutrient environment in 3D (disabled for performance)
   NUTRIENT_POINT_SIZE: 1.5, // Size of nutrient points in 3D visualization
   NUTRIENT_POINT_OPACITY: 0.3, // Opacity of nutrient points
-  CAMERA_DISTANCE: 100, // Initial camera distance
-  CAMERA_FOV: 75, // Camera field of view
+  CAMERA_DISTANCE: 120, // Increased camera distance to better see the entire growth
+  CAMERA_FOV: 60 // Reduced FOV for less distortion and better visibility
 };
