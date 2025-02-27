@@ -557,6 +557,15 @@ export class EnvironmentGPU {
   private nutrientCtx: CanvasRenderingContext2D | null = null;
   private lastNutrientRender = 0;
   private readonly NUTRIENT_RENDER_INTERVAL = 10; // Only update every 10 frames
+  private nutrientOpacity = 0.15; // Default opacity value
+  
+  /**
+   * Sets the opacity for nutrient visualization
+   * @param opacity - Opacity value between 0 and 1
+   */
+  public setNutrientOpacity(opacity: number): void {
+    this.nutrientOpacity = Math.max(0.05, Math.min(0.4, opacity));
+  }
   
   /**
    * Draws the nutrient grid onto the canvas for visualization.
@@ -564,13 +573,14 @@ export class EnvironmentGPU {
    * @param ctx - Canvas rendering context.
    */
   public drawNutrientGrid(ctx: CanvasRenderingContext2D) {
-    // Only update nutrient visualization periodically
-    if (this.frameCount - this.lastNutrientRender < this.NUTRIENT_RENDER_INTERVAL) {
+    // Only update nutrient visualization periodically to maintain performance
+    // but make updates more frequent to show changes
+    const updateNeeded = this.frameCount - this.lastNutrientRender >= 2;
+    
+    if (!updateNeeded && this.nutrientCanvas && this.nutrientCtx) {
       // Just draw the existing offscreen canvas if available
-      if (this.nutrientCanvas && this.nutrientCtx) {
-        ctx.drawImage(this.nutrientCanvas, 0, 0);
-        return;
-      }
+      ctx.drawImage(this.nutrientCanvas, 0, 0);
+      return;
     }
     
     this.lastNutrientRender = this.frameCount;
@@ -591,9 +601,9 @@ export class EnvironmentGPU {
     // Clear the offscreen canvas
     this.nutrientCtx.clearRect(0, 0, this.nutrientCanvas.width, this.nutrientCanvas.height);
     
-    // Use a much larger skip factor for better performance
-    const skipFactor = Math.max(4, Math.floor(this.diffusionSkipFactor * 2));
-    const maxAlpha = 0.04; // Even lower alpha for less visual impact
+    // Use a smaller skip factor for more visible nutrients, but still reasonable performance
+    const skipFactor = Math.max(2, Math.floor(this.diffusionSkipFactor)); // Smaller skip factor = more detail
+    const maxAlpha = this.nutrientOpacity; // Use the configurable opacity value
     
     // Render to offscreen canvas
     for (let x = 0; x < this.nutrientGrid.length; x += skipFactor) {
@@ -601,23 +611,50 @@ export class EnvironmentGPU {
         const nutrient = this.nutrientGrid[x][y];
         const moisture = this.moistureGrid[x][y];
         
-        // Only draw cells with significant nutrients
-        if (nutrient > config.BASE_NUTRIENT * 0.6 || moisture > config.BASE_NUTRIENT * 0.6) {
-          // Blend colors: green for nutrients, blue for moisture
-          const r = 0;
-          const g = Math.min(180, Math.floor((nutrient / config.BASE_NUTRIENT) * 130));
-          const b = Math.min(180, Math.floor((moisture / config.BASE_NUTRIENT) * 130));
+        // Show nutrients at lower threshold for better visibility across the entire radius
+        if (nutrient > config.BASE_NUTRIENT * 0.3 || moisture > config.BASE_NUTRIENT * 0.4) {
+          // Enhanced color mapping:
+          // - More visible green for nutrients
+          // - More visible blue for moisture
+          // - Add some red for very high nutrient concentrations
+          const nutrientRatio = nutrient / config.BASE_NUTRIENT;
+          const moistureRatio = moisture / config.BASE_NUTRIENT;
           
-          // Extremely low alpha to avoid taking over the entire display
-          const a = Math.min(maxAlpha, (nutrient + moisture) / (8 * config.BASE_NUTRIENT));
+          // Red component appears only at very high nutrient levels
+          const r = nutrientRatio > 1.2 ? Math.min(80, Math.floor((nutrientRatio - 1.2) * 100)) : 0;
+          
+          // Green represents nutrients - brighter for better visibility
+          const g = Math.min(210, Math.floor(nutrientRatio * 180));
+          
+          // Blue represents moisture - more pronounced
+          const b = Math.min(220, Math.floor(moistureRatio * 200));
+          
+          // Alpha increases with nutrient+moisture, but with a higher minimum for visibility
+          // and a higher maximum for better contrast
+          const totalConcentration = (nutrient + moisture) / (config.BASE_NUTRIENT * 2);
+          const a = Math.min(maxAlpha, Math.max(0.05, totalConcentration * 0.25));
           
           this.nutrientCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+          
+          // Draw slightly larger cells for better visibility
+          const cellSize = config.ENV_GRID_CELL_SIZE;
           this.nutrientCtx.fillRect(
-            x * config.ENV_GRID_CELL_SIZE,
-            y * config.ENV_GRID_CELL_SIZE,
-            config.ENV_GRID_CELL_SIZE * skipFactor,
-            config.ENV_GRID_CELL_SIZE * skipFactor,
+            x * cellSize,
+            y * cellSize,
+            cellSize * skipFactor * 1.1, // Slightly larger
+            cellSize * skipFactor * 1.1
           );
+          
+          // Add a subtle glow effect for high concentrations
+          if (nutrientRatio > 1.5 || moistureRatio > 1.5) {
+            this.nutrientCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a * 0.3})`;
+            this.nutrientCtx.fillRect(
+              x * cellSize - cellSize,
+              y * cellSize - cellSize,
+              cellSize * skipFactor * 1.5,
+              cellSize * skipFactor * 1.5
+            );
+          }
         }
       }
     }

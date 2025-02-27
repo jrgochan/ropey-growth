@@ -214,4 +214,11 @@ export class MockMycelialNetwork {
   public getAllEdges(): Edge[] {
     return this.edges;
   }
+  
+  // Reset the network by clearing all nodes, connections, and edges
+  public resetNetwork(): void {
+    this.nodes.clear();
+    this.edges = [];
+    this.nextNodeId = 0;
+  }
 }

@@ -172,37 +172,82 @@ export class GrowthManager {
   }
   
   /**
-   * Sets up initial nutrients distribution to support healthy central growth
+   * Sets up initial nutrients distribution to support healthy growth throughout the entire radius
    */
   private setupInitialNutrients() {
-    // Create a high nutrient concentration in the center
-    const centerRadius = this.growthRadius * 0.4;
+    console.log("Setting up comprehensive nutrient distribution across entire growth area");
     
-    // Dense central nutrients
-    for (let i = 0; i < 30; i++) {
+    // Create a nutrient-rich environment throughout the entire growth radius
+    // We'll use concentric rings of nutrients with decreasing density from center to edge
+    
+    // Dense nutrients throughout the entire radius, with varying density
+    // 1. Central core (0-20% radius) - Very high density
+    this.addNutrientRing(0, 0.2 * this.growthRadius, 40, 1.5);
+    
+    // 2. Inner ring (20-50% radius) - High density
+    this.addNutrientRing(0.2 * this.growthRadius, 0.5 * this.growthRadius, 60, 1.2);
+    
+    // 3. Middle ring (50-75% radius) - Medium density
+    this.addNutrientRing(0.5 * this.growthRadius, 0.75 * this.growthRadius, 60, 1.0);
+    
+    // 4. Outer ring (75-95% radius) - Lower but still adequate density
+    this.addNutrientRing(0.75 * this.growthRadius, 0.95 * this.growthRadius, 40, 0.9);
+    
+    // Also add some random nutrient pockets throughout for natural variation
+    for (let i = 0; i < 50; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const distanceFactor = Math.pow(Math.random(), 0.7); // More central concentration
-      const distance = distanceFactor * centerRadius;
+      // Use square root distribution to ensure more even coverage
+      const distanceFactor = Math.sqrt(Math.random());
+      const distance = distanceFactor * this.growthRadius * 0.95;
       
       const x = this.centerX + Math.cos(angle) * distance;
       const y = this.centerY + Math.sin(angle) * distance;
       
-      // Higher nutrient amount in center
-      const amount = (0.9 + 0.6 * Math.random()) * config.NUTRIENT_POCKET_AMOUNT;
+      // Random nutrient amount
+      const amount = (0.7 + 0.6 * Math.random()) * config.NUTRIENT_POCKET_AMOUNT;
       this.envGPU.addNutrient(x, y, amount);
     }
     
-    // Also add some moisture for healthy growth
-    for (let i = 0; i < 20; i++) {
+    // Add moisture throughout the growth radius
+    // More moisture in central and mid-regions, less at edges
+    for (let i = 0; i < 80; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const distance = Math.random() * centerRadius * 1.2;
+      const distanceFactor = Math.random();
+      const distance = distanceFactor * this.growthRadius * 0.95;
       
       const x = this.centerX + Math.cos(angle) * distance;
       const y = this.centerY + Math.sin(angle) * distance;
       
+      // Moisture decreases slightly toward edges
+      const moistureFactor = 1.0 - (distanceFactor * 0.3); // 1.0 at center, 0.7 at edge
+      
       if (this.envGPU.addMoisture) {
-        this.envGPU.addMoisture(x, y, 50 + Math.random() * 50);
+        this.envGPU.addMoisture(x, y, (50 + Math.random() * 60) * moistureFactor);
       }
+    }
+    
+    console.log("Nutrient distribution complete - entire growth radius prepared for mycelial growth");
+  }
+  
+  /**
+   * Helper function to add nutrients in a ring pattern
+   * @param innerRadius Inner radius of the ring
+   * @param outerRadius Outer radius of the ring
+   * @param count Number of nutrient pockets to add
+   * @param intensityFactor Multiplier for nutrient amount (higher = more nutrients)
+   */
+  private addNutrientRing(innerRadius: number, outerRadius: number, count: number, intensityFactor: number) {
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.5); // Add small randomization
+      // Random radius within the ring
+      const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
+      
+      const x = this.centerX + Math.cos(angle) * radius;
+      const y = this.centerY + Math.sin(angle) * radius;
+      
+      // Calculate nutrient amount with some randomness
+      const amount = config.NUTRIENT_POCKET_AMOUNT * intensityFactor * (0.8 + Math.random() * 0.4);
+      this.envGPU.addNutrient(x, y, amount);
     }
   }
   
@@ -213,28 +258,32 @@ export class GrowthManager {
     // Force clear any existing tips to avoid duplicate creation
     this.tips = [];
     
+    // BOOST: Create more initial trunks in the central region
+    // This forms a dense central mycelial network from the start
+    const centralBranchCount = config.MAIN_BRANCH_COUNT * 2; // Double the branches
+    
     // Create main trunks from the center with debug visualization
-    for (let i = 0; i < config.MAIN_BRANCH_COUNT; i++) {
+    for (let i = 0; i < centralBranchCount; i++) {
       // Calculate a more uniform distribution of angles
-      const angle = (i / config.MAIN_BRANCH_COUNT) * Math.PI * 2;
+      const angle = (i / centralBranchCount) * Math.PI * 2;
       // Add a small random variation to prevent perfect symmetry
       const angleVariation = (Math.random() - 0.5) * (Math.PI / 16);
       
-      // Create a more biologically realistic hyphal tip with debug info
+      // Create a much stronger initial hyphal tip to ensure central growth
       const newTip: HyphaTip = {
         x: this.centerX,
         y: this.centerY,
         angle: angle + angleVariation,
-        life: config.BASE_LIFE,
+        life: config.BASE_LIFE * 2, // Double life for central hyphae
         depth: 0,
         growthType: "main",
-        resource: config.INITIAL_RESOURCE_PER_TIP,
-        // Initialize new biological properties with default values if not available in config
+        resource: config.INITIAL_RESOURCE_PER_TIP * 2, // Double resources
+        // Initialize new biological properties with enhanced values for central durability
         age: 0,
-        maturity: 0,
-        enzymeActivity: 0.5 + Math.random() * 0.5, // Initial enzyme activity varies
-        carbonNutrient: config.INITIAL_RESOURCE_PER_TIP * 0.7, // 70% carbon
-        nitrogenNutrient: config.INITIAL_RESOURCE_PER_TIP * 0.3, // 30% nitrogen
+        maturity: 0.1, // Start with some maturity
+        enzymeActivity: 0.8 + Math.random() * 0.2, // Higher enzyme activity for better nutrient acquisition
+        carbonNutrient: config.INITIAL_RESOURCE_PER_TIP * 2 * 0.7, // 70% carbon, doubled like resource
+        nitrogenNutrient: config.INITIAL_RESOURCE_PER_TIP * 2 * 0.3, // 30% nitrogen, doubled like resource
         temperatureSensitivity: Math.random() * 0.3 + 0.3, // Random sensitivity
         phSensitivity: Math.random() * 0.3 + 0.3, // Random sensitivity
         basalRespirationRate: (config.HYPHAL_RESPIRATION_RATE || 0.02) * (0.8 + Math.random() * 0.4), // Default if not set
@@ -418,73 +467,118 @@ export class GrowthManager {
         this.envGPU.diffuseNutrients();
       }
       
-      // Reduce nutrient pocket creation frequency when performance is low
-      const pocketFrequency = Math.max(100, Math.floor(100 / performanceFactor));
+      // Ensure nutrients are distributed throughout the entire growth radius
+      // Reduce frequency based on performance
+      const pocketFrequency = Math.max(80, Math.floor(100 / performanceFactor));
+      
+      // Primary nutrient replenishment system - maintain nutrients across all zones
       if (this.simulationTime % pocketFrequency === 0) {
-        // Add random nutrient pockets throughout the growth radius
-        for (let i = 0; i < 3; i++) { // Add multiple pockets at once
-          let angle, distance, pocketX, pocketY;
+        // Determine which zone to add nutrients to based on a cycle
+        // This ensures all zones get nutrients over time
+        const cyclePosition = Math.floor(this.simulationTime / pocketFrequency) % 5;
+        
+        // Select appropriate zone based on cycle position
+        let innerRadius, outerRadius, pocketCount, intensityFactor;
+        
+        switch (cyclePosition) {
+          case 0: // Very center (0-15%)
+            innerRadius = 0;
+            outerRadius = this.growthRadius * 0.15;
+            pocketCount = 5;
+            intensityFactor = 1.6;
+            break;
+            
+          case 1: // Inner region (15-40%)
+            innerRadius = this.growthRadius * 0.15;
+            outerRadius = this.growthRadius * 0.4;
+            pocketCount = 6;
+            intensityFactor = 1.3;
+            break;
+            
+          case 2: // Middle region (40-65%)
+            innerRadius = this.growthRadius * 0.4;
+            outerRadius = this.growthRadius * 0.65;
+            pocketCount = 6; 
+            intensityFactor = 1.1;
+            break;
+            
+          case 3: // Outer region (65-85%)
+            innerRadius = this.growthRadius * 0.65;
+            outerRadius = this.growthRadius * 0.85;
+            pocketCount = 5;
+            intensityFactor = 1.0;
+            break;
+            
+          case 4: // Edge region (85-95%)
+            innerRadius = this.growthRadius * 0.85;
+            outerRadius = this.growthRadius * 0.95;
+            pocketCount = 4;
+            intensityFactor = 1.2; // Higher nutrients at edge to encourage outward growth
+            break;
+        }
+        
+        // Add nutrients to the selected zone
+        for (let i = 0; i < pocketCount; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          // Random position within the zone
+          const distance = innerRadius + Math.random() * (outerRadius - innerRadius);
           
-          // 40% chance to add nutrients closer to center to support central growth
-          if (Math.random() < 0.4) {
-            angle = Math.random() * Math.PI * 2;
-            // Central region distribution (inner 50% of radius)
-            distance = Math.random() * this.growthRadius * 0.5;
-            
-            pocketX = this.centerX + Math.cos(angle) * distance;
-            pocketY = this.centerY + Math.sin(angle) * distance;
-            
-            // Higher nutrient density in center
-            this.envGPU.addNutrient(
-              pocketX, 
-              pocketY, 
-              config.NUTRIENT_POCKET_AMOUNT * 1.2 * (1 + Math.random()) // Higher amount
-            );
-          } else {
-            // Outer region distribution
-            angle = Math.random() * Math.PI * 2;
-            // Use weighted distribution favoring outer area
-            const r = Math.random();
-            distance = (0.5 + 0.45 * r) * this.growthRadius; // 50%-95% of radius
-            
-            pocketX = this.centerX + Math.cos(angle) * distance;
-            pocketY = this.centerY + Math.sin(angle) * distance;
-            
-            this.envGPU.addNutrient(
-              pocketX, 
-              pocketY, 
-              config.NUTRIENT_POCKET_AMOUNT * 0.7 * (1 + Math.random())
+          const pocketX = this.centerX + Math.cos(angle) * distance;
+          const pocketY = this.centerY + Math.sin(angle) * distance;
+          
+          // Add nutrient with appropriate intensity for the zone
+          this.envGPU.addNutrient(
+            pocketX,
+            pocketY,
+            config.NUTRIENT_POCKET_AMOUNT * intensityFactor * (0.8 + Math.random() * 0.4)
+          );
+        }
+        
+        // Also add a few completely random pockets throughout for variation
+        for (let i = 0; i < 2; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * this.growthRadius * 0.95;
+          
+          const randomX = this.centerX + Math.cos(angle) * distance;
+          const randomY = this.centerY + Math.sin(angle) * distance;
+          
+          this.envGPU.addNutrient(
+            randomX,
+            randomY,
+            config.NUTRIENT_POCKET_AMOUNT * (0.7 + Math.random() * 0.6)
+          );
+        }
+      }
+      
+      // Moisture distribution - run on a different frequency
+      if (this.simulationTime % (pocketFrequency * 1.5) === 0) {
+        // Add moisture to random locations
+        for (let i = 0; i < 4; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * this.growthRadius * 0.95;
+          
+          const moistX = this.centerX + Math.cos(angle) * distance;
+          const moistY = this.centerY + Math.sin(angle) * distance;
+          
+          if (this.envGPU.addMoisture) {
+            this.envGPU.addMoisture(
+              moistX,
+              moistY,
+              40 + Math.random() * 80
             );
           }
         }
       }
       
-      // Periodically add a small boost in the center to maintain central growth
-      if (this.simulationTime % 170 === 0) {
-        // Add a small central nutrient boost
-        const centerBoostRadius = this.growthRadius * 0.25;
-        for (let i = 0; i < 4; i++) {
-          const angle = (i / 4) * Math.PI * 2; // Evenly spaced angles
-          const distance = centerBoostRadius * Math.random();
-          
-          const boostX = this.centerX + Math.cos(angle) * distance;
-          const boostY = this.centerY + Math.sin(angle) * distance;
-          
-          this.envGPU.addNutrient(
-            boostX, 
-            boostY, 
-            config.NUTRIENT_POCKET_AMOUNT * 0.8
-          );
-        }
-      }
-      
-      // Edge growth enhancement with adaptive frequency
-      const edgeFrequency = Math.max(300, Math.floor(300 / performanceFactor));
+      // Ensure there's always edge growth with a ring of nutrients
+      const edgeFrequency = Math.max(250, Math.floor(300 / performanceFactor));
       if (this.simulationTime % edgeFrequency === 0) {
-        // Add a ring of nutrients near the boundary to stimulate growth
-        for (let i = 0; i < 8; i++) {
-          const angle = (i / 8) * Math.PI * 2;
-          const distance = this.growthRadius * 0.85;
+        // Create a more complete ring with more points for smoother growth
+        const ringPoints = 12;
+        for (let i = 0; i < ringPoints; i++) {
+          const angle = (i / ringPoints) * Math.PI * 2;
+          // Randomize slightly to create a less perfect circle
+          const distance = this.growthRadius * (0.85 + Math.random() * 0.1);
           
           const pocketX = this.centerX + Math.cos(angle) * distance;
           const pocketY = this.centerY + Math.sin(angle) * distance;
@@ -492,7 +586,7 @@ export class GrowthManager {
           this.envGPU.addNutrient(
             pocketX, 
             pocketY, 
-            config.NUTRIENT_POCKET_AMOUNT * 1.2
+            config.NUTRIENT_POCKET_AMOUNT * 1.4
           );
         }
       }
@@ -625,26 +719,54 @@ export class GrowthManager {
       
       // BASAL METABOLISM - Consume resources for maintenance
       // Real fungi have a maintenance cost even when not growing
-      // Dramatically reduced respiration rate to prevent tips from dying too quickly
-      const baseRespirationRate = tip.basalRespirationRate * 0.01; // Reduced by 99% for better simulation
       
-      // Distance from center factor - need to keep central hyphae alive
+      // Distance from center calculation
       const centerDist = Math.hypot(tip.x - this.centerX, tip.y - this.centerY);
       const maxDist = this.growthRadius * 0.8;
       const distFactor = Math.min(1, centerDist / maxDist);
       
-      // Inverse scale - central hyphae have dramatically reduced respiration
-      // Center: 0.001, Edge: ~0.2 times base rate, steep curve to prioritize central persistence
-      const inverseFactor = 0.001 + Math.pow(distFactor, 3) * 0.2;
-      
-      // Apply distance-based scaling to respiration (center hyphae consume almost nothing)
-      const adjustedRespiration = baseRespirationRate * inverseFactor;
-      
-      // Further reduce respiration globally to prevent die-offs
-      const finalRespiration = adjustedRespiration * 0.1;
-      
-      tip.carbonNutrient -= finalRespiration * (environmentalFactors.temperatureFactor || 1);
-      tip.nitrogenNutrient -= finalRespiration * 0.1 * (environmentalFactors.temperatureFactor || 1);
+      // CRITICAL FIX: Make central zone hyphae immortal and even gain resources over time
+      if (distFactor < 0.25) {
+        // Central zone tips ADD resources rather than consuming them
+        if (this.simulationTime % 10 === 0) {
+          // Give central hyphae periodic resource boosts
+          tip.resource += 2;
+          tip.carbonNutrient += 1.4;
+          tip.nitrogenNutrient += 0.6;
+          
+          // Reset life to full to ensure central hyphae never die
+          tip.life = Math.max(tip.life, config.BASE_LIFE * 0.8);
+        }
+        
+        // Skip respiration completely for central hyphae
+        const finalRespiration = 0;
+      } else {
+        // Normal respiration for outer hyphae, but still very reduced
+        // Dramatically reduced respiration rate to prevent tips from dying too quickly
+        const baseRespirationRate = tip.basalRespirationRate * 0.01; // Reduced by 99% for better simulation
+        
+        // Use an exponential curve for respiration scale
+        // Near center (0.25-0.4): very low respiration (0.0001)
+        // Middle (0.4-0.7): moderate respiration (0.001-0.01)
+        // Edge (0.7-1.0): higher respiration (0.01-0.05)
+        let respirationFactor;
+        if (distFactor < 0.4) {
+          respirationFactor = 0.0001;
+        } else if (distFactor < 0.7) {
+          // Map 0.4-0.7 range to 0.001-0.01 with exponential growth
+          respirationFactor = 0.001 * Math.pow(10, (distFactor - 0.4) * 2);
+        } else {
+          // Map 0.7-1.0 range to 0.01-0.05 
+          respirationFactor = 0.01 + (distFactor - 0.7) * 0.13;
+        }
+        
+        // Apply final respiration rate
+        const finalRespiration = baseRespirationRate * respirationFactor;
+        
+        // Apply respiration to nutrients
+        tip.carbonNutrient -= finalRespiration * (environmentalFactors.temperatureFactor || 1);
+        tip.nitrogenNutrient -= finalRespiration * 0.1 * (environmentalFactors.temperatureFactor || 1);
+      }
       
       // Apply daily and seasonal cycles if supported and enabled
       if (environmentalFactors.circadianFactor && 
@@ -812,8 +934,8 @@ export class GrowthManager {
       
       // Environmental factors
       const tempFactor = environmentalFactors.temperatureFactor || 1;
-      const moistureFactor = environmentalFactors.moistureFactor || 1;
-      const pHFactor = environmentalFactors.pHFactor || 1;
+      const moistureFactorValue = environmentalFactors.moistureFactor || 1;
+      const pHFactorValue = environmentalFactors.pHFactor || 1;
       
       // Growth type specific factors
       let growthTypeFactor = 1.0;
@@ -843,7 +965,7 @@ export class GrowthManager {
       
       // Calculate final step size
       const growthMultiplier = resourceFactor * cnBalanceFactor * tempFactor * 
-                            moistureFactor * pHFactor * growthTypeFactor * 
+                            moistureFactorValue * pHFactorValue * growthTypeFactor * 
                             ageFactor * resistanceFactor;
       
       const actualStepSize = config.STEP_SIZE * growthMultiplier;
@@ -1030,6 +1152,18 @@ export class GrowthManager {
         (1 - tip.specialization * 0.5) *             // Specialization reduces branching
         (1 - apicalSuppressionFactor)                // Apical dominance suppresses branching
       );
+      
+      // Boost branching chance for central zone to create denser central network
+      // This is CRITICAL to ensure the center remains populated with hyphae
+      if (distFactor < 0.3) {
+        // Central region gets dramatically increased branching (2-4x)
+        adjustedBranchChance *= 3.0; 
+        
+        // Nearly guaranteed branching in the very center
+        if (distFactor < 0.1) {
+          adjustedBranchChance = Math.max(adjustedBranchChance, 0.9);
+        }
+      }
         
       // Age affects branching - young tips rarely branch, old tips branch less
       // Override during initial growth phase to force visible branching
@@ -1124,10 +1258,12 @@ export class GrowthManager {
             x: spawnX,
             y: spawnY,
             angle: newAngle,
-            life: Math.max(
-              tip.life * config.BRANCH_DECAY,
-              config.BASE_LIFE * 0.5,
-            ),
+            // Branch decay is reduced in central region for more stable network
+            life: distFactor < 0.3 ? 
+              // Central branches get much higher life values
+              Math.max(tip.life * 0.9, config.BASE_LIFE * 1.2) :
+              // Normal branch decay in outer regions
+              Math.max(tip.life * config.BRANCH_DECAY, config.BASE_LIFE * 0.5),
             depth: tip.depth + 1,
             growthType: branchType,
             resource: tip.resource * 0.4, // Transfer resources to branch
@@ -1521,6 +1657,10 @@ export class GrowthManager {
     depth: number,
     customThickness?: number,
     maturity: number = 0,
+    temperatureFactor?: number,
+    pHFactor?: number,
+    nutrientFactor?: number,
+    moistureFactor?: number
   ) {
     // Verify we're drawing a real segment
     const distance = Math.hypot(newX - oldX, newY - oldY);
@@ -1529,10 +1669,26 @@ export class GrowthManager {
       return;
     }
     
-    // Force much thicker lines in early simulation to make growth visible
+    // Force much thicker lines for both early simulation and central growth
     let forcedThickness = 0;
+    
+    // Early simulation - make all lines very thick for visibility
     if (this.simulationTime < 30) {
       forcedThickness = 6.0;
+    } 
+    
+    // Calculate distance from center
+    const segmentCenterX = (oldX + newX) / 2;
+    const segmentCenterY = (oldY + newY) / 2;
+    const distFromCenter = Math.hypot(segmentCenterX - this.centerX, segmentCenterY - this.centerY);
+    const relativeDistFromCenter = distFromCenter / this.growthRadius;
+    
+    // CRITICAL FIX: Make central segments much thicker for better visibility
+    if (relativeDistFromCenter < 0.3) {
+      // Central segments get extra thickness based on proximity to center
+      // The closer to center, the thicker
+      const centralThicknessFactor = 1 + (0.3 - relativeDistFromCenter) * 9;
+      forcedThickness = Math.max(forcedThickness, 3.0 * centralThicknessFactor);
     }
     
     // Debug early segments
@@ -1548,30 +1704,42 @@ export class GrowthManager {
     const midX = (oldX + newX) / 2;
     const midY = (oldY + newY) / 2;
     
-    // Environmental factors from the substrate or simple environment
-    let nutrientFactor = 0.5; // Default to moderate value
-    let moistureFactor = 0.5; // Default to moderate value
-    let temperatureFactor = 1;
-    let pHFactor = 1;
+    // Check if environmental factors were provided as parameters
+    let nutrientFactorValue = nutrientFactor !== undefined ? nutrientFactor : 0.5; // Default to moderate value
+    let moistureFactorValue = moistureFactor !== undefined ? moistureFactor : 0.5; // Default to moderate value
+    let temperatureFactorValue = temperatureFactor !== undefined ? temperatureFactor : 1;
+    let pHFactorValue = pHFactor !== undefined ? pHFactor : 1;
     
-    if (this.substrate && this.substrate.getEnvironmentalFactors) {
-      // Advanced substrate model
-      const factors = this.substrate.getEnvironmentalFactors(midX, midY);
-      nutrientFactor = (factors.carbon + factors.nitrogen) / 
-        (config.BASE_NUTRIENT * (1 + 1/(config.CARBON_NITROGEN_RATIO || 25)));
-      moistureFactor = factors.moisture / config.BASE_NUTRIENT;
-      temperatureFactor = this.getTemperatureFactor(factors.temperature);
-      pHFactor = this.getPHFactor(factors.pH);
-    } else {
-      // Simple environment model
-      if (this.envGPU.getNutrientLevel) {
-        const nutrientLevel = this.envGPU.getNutrientLevel(midX, midY);
-        nutrientFactor = Math.min(1, nutrientLevel / config.BASE_NUTRIENT);
-      }
-      
-      if (this.envGPU.getMoisture) {
-        const moistureLevel = this.envGPU.getMoisture(midX, midY);
-        moistureFactor = Math.min(1, moistureLevel / config.BASE_NUTRIENT);
+    // Only query environment if factors weren't provided as parameters
+    if (nutrientFactor === undefined || moistureFactor === undefined || 
+        temperatureFactor === undefined || pHFactor === undefined) {
+      if (this.substrate && this.substrate.getEnvironmentalFactors) {
+        // Advanced substrate model
+        const factors = this.substrate.getEnvironmentalFactors(midX, midY);
+        if (nutrientFactor === undefined) {
+          nutrientFactorValue = (factors.carbon + factors.nitrogen) / 
+            (config.BASE_NUTRIENT * (1 + 1/(config.CARBON_NITROGEN_RATIO || 25)));
+        }
+        if (moistureFactor === undefined) {
+          moistureFactorValue = factors.moisture / config.BASE_NUTRIENT;
+        }
+        if (temperatureFactor === undefined) {
+          temperatureFactorValue = this.getTemperatureFactor(factors.temperature);
+        }
+        if (pHFactor === undefined) {
+          pHFactorValue = this.getPHFactor(factors.pH);
+        }
+      } else {
+        // Simple environment model
+        if (nutrientFactor === undefined && this.envGPU.getNutrientLevel) {
+          const nutrientLevel = this.envGPU.getNutrientLevel(midX, midY);
+          nutrientFactorValue = Math.min(1, nutrientLevel / config.BASE_NUTRIENT);
+        }
+        
+        if (moistureFactor === undefined && this.envGPU.getMoisture) {
+          const moistureLevel = this.envGPU.getMoisture(midX, midY);
+          moistureFactorValue = Math.min(1, moistureLevel / config.BASE_NUTRIENT);
+        }
       }
     }
 
@@ -1662,14 +1830,14 @@ export class GrowthManager {
     // Environmental influences on appearance - with safety checks
     
     // Temperature affects color - higher temp = warmer tones
-    if (typeof temperatureFactor === 'number') {
-      const tempInfluence = temperatureFactor - 0.5; // -0.4 to 0.5 range
+    if (typeof temperatureFactorValue === 'number') {
+      const tempInfluence = temperatureFactorValue - 0.5; // -0.4 to 0.5 range
       hue += tempInfluence * 15; // Shift hue slightly based on temperature
     }
     
     // pH affects color - acidic = yellowish, alkaline = bluish
-    if (typeof pHFactor === 'number') {
-      const pHInfluence = pHFactor - 0.5; // -0.4 to 0.5 range
+    if (typeof pHFactorValue === 'number') {
+      const pHInfluence = pHFactorValue - 0.5; // -0.4 to 0.5 range
       hue += pHInfluence * 10;
     }
     
@@ -1677,10 +1845,22 @@ export class GrowthManager {
     hue = ((hue % 360) + 360) % 360;
     
     // Nutrient level affects saturation
-    saturation = Math.max(0, Math.min(100, saturation + (nutrientFactor || 0.5) * 15));
+    saturation = Math.max(0, Math.min(100, saturation + (nutrientFactorValue || 0.5) * 15));
     
     // Moisture affects color intensity
-    alpha = Math.max(0.3, Math.min(1, alpha * (0.7 + (moistureFactor || 0.5) * 0.5)));
+    alpha = Math.max(0.3, Math.min(1, alpha * (0.7 + (moistureFactorValue || 0.5) * 0.5)));
+    
+    // Increase opacity for central segments to make them more visible
+    if (relativeDistFromCenter < 0.3) {
+      // Center segments are fully opaque for maximum visibility
+      alpha = Math.min(1.0, alpha + (0.3 - relativeDistFromCenter) * 3);
+      
+      // Also make central segments more white to stand out
+      lightness = Math.min(100, lightness + (0.3 - relativeDistFromCenter) * 60);
+      
+      // Add more saturation to central segments for better visibility 
+      saturation = Math.min(100, saturation + (0.3 - relativeDistFromCenter) * 40);
+    }
     
     // Validate parameters to prevent invalid values
     saturation = Math.max(0, Math.min(100, saturation));
@@ -1694,16 +1874,48 @@ export class GrowthManager {
     // Check if the stroke color and width are valid before drawing
     if (!isNaN(hue) && !isNaN(saturation) && !isNaN(lightness) && !isNaN(alpha) && !isNaN(lineWidth)) {
       // Enhanced shadows for depth perception
-      const shadowIntensity = (config.SHADOW_BLUR || 0) * 
+      let shadowIntensity = (config.SHADOW_BLUR || 0) * 
         (lineWidth / (config.MAIN_LINE_WIDTH || 1));
+        
+      // Enhance shadow for central segments for better visibility
+      if (relativeDistFromCenter < 0.3) {
+        shadowIntensity *= (1 + (0.3 - relativeDistFromCenter) * 10);
+      }
+      
       this.ctx.shadowBlur = shadowIntensity;
       this.ctx.shadowColor = config.SHADOW_COLOR || "rgba(0,0,0,0.1)";
 
       // Draw the line segment
-      this.ctx.beginPath();
-      this.ctx.moveTo(oldX, oldY);
-      this.ctx.lineTo(newX, newY);
-      this.ctx.stroke();
+      if (this.ctx.beginPath) this.ctx.beginPath();
+      if (this.ctx.moveTo) this.ctx.moveTo(oldX, oldY);
+      if (this.ctx.lineTo) this.ctx.lineTo(newX, newY);
+      if (this.ctx.stroke) this.ctx.stroke();
+      
+      // For central segments, draw additional parallel lines to make them more visible
+      if (relativeDistFromCenter < 0.15) {
+        // Amount of spread for parallel lines
+        const spreadFactor = 0.5 + (0.15 - relativeDistFromCenter) * 10;
+        const dx = newX - oldX;
+        const dy = newY - oldY;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        
+        if (length > 0) {
+          // Calculate perpendicular vector
+          const perpX = -dy / length * spreadFactor;
+          const perpY = dx / length * spreadFactor;
+          
+          // Draw parallel lines on both sides
+          if (this.ctx.beginPath) this.ctx.beginPath();
+          if (this.ctx.moveTo) this.ctx.moveTo(oldX + perpX, oldY + perpY);
+          if (this.ctx.lineTo) this.ctx.lineTo(newX + perpX, newY + perpY);
+          if (this.ctx.stroke) this.ctx.stroke();
+          
+          if (this.ctx.beginPath) this.ctx.beginPath();
+          if (this.ctx.moveTo) this.ctx.moveTo(oldX - perpX, oldY - perpY);
+          if (this.ctx.lineTo) this.ctx.lineTo(newX - perpX, newY - perpY);
+          if (this.ctx.stroke) this.ctx.stroke();
+        }
+      }
 
       // Reset shadow
       this.ctx.shadowBlur = 0;

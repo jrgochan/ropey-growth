@@ -323,6 +323,11 @@ const animate = (currentTime = 0) => {
   // Update simulation with adaptive time step
   growth.updateAndDraw(currentTime, performanceFactor);
   
+  // Make nutrients visible if enabled
+  if (showNutrients && envGPU.drawNutrientGrid) {
+    envGPU.drawNutrientGrid(ctx);
+  }
+  
   // Show FPS counter every 30 frames
   if (frameCount % 30 === 0) {
     let fpsDisplay = document.getElementById('fps-counter');
@@ -524,6 +529,34 @@ const initGUI = () => {
   };
   
   toolsFolder.add(toolInfo, 'showHelp').name('Tool Help');
+  
+  // Nutrient visualization controls
+  const nutrientVisibility = {
+    showNutrients: true,
+    nutrientOpacity: 0.15
+  };
+  
+  // Add nutrient controls
+  const nutrientFolder = gui.addFolder("Nutrient Visualization");
+  nutrientFolder.add(nutrientVisibility, 'showNutrients')
+    .name('Show Nutrients')
+    .onChange((value) => {
+      showNutrients = value;
+    });
+  
+  nutrientFolder.add(nutrientVisibility, 'nutrientOpacity', 0.05, 0.4)
+    .step(0.05)
+    .name('Nutrient Opacity')
+    .onChange((value) => {
+      if (envGPU.setNutrientOpacity) {
+        envGPU.setNutrientOpacity(value);
+      }
+    });
+  
+  nutrientFolder.open();
+  
+  // Make variable available globally
+  let showNutrients = nutrientVisibility.showNutrients;
   
   // Restart button (always visible)
   gui.add({ restart: () => setup() }, "restart").name("Restart Simulation");
