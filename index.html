@@ -121,10 +121,68 @@
       .growth { background-color: #d4a373; }
       .environment { background-color: #9381ff; }
       .advanced { background-color: #ef476f; }
+      .tool { background-color: #ff9f1c; }
+      
+      /* Tool cursor indicators */
+      .custom-cursor {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid white;
+        background-color: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 1000;
+        display: none;
+      }
+      
+      /* Tool icons */
+      .tool-icon {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        background-color: #666;
+        border-radius: 4px;
+        margin-right: 5px;
+        text-align: center;
+        line-height: 24px;
+        font-weight: bold;
+        font-size: 14px;
+      }
+      
+      .icon-nutrient { background-color: #2ecc71; }
+      .icon-moisture { background-color: #3498db; }
+      .icon-obstacle { background-color: #e74c3c; }
+      .icon-temp { background-color: #f39c12; }
+      .icon-ph { background-color: #9b59b6; }
+      .icon-spore { background-color: #1abc9c; }
     </style>
   </head>
   <body>
     <canvas id="myCanvas" width="800" height="600"></canvas>
+    
+    <!-- Tool cursor indicator -->
+    <div id="toolCursor" class="custom-cursor"></div>
+    
+    <!-- Tool palette -->
+    <div id="toolPalette" style="position: absolute; left: 20px; top: 20px; display: none;">
+      <button class="tool-button" data-tool="addNutrient">
+        <span class="tool-icon icon-nutrient">N</span>
+      </button>
+      <button class="tool-button" data-tool="addMoisture">
+        <span class="tool-icon icon-moisture">M</span>
+      </button>
+      <button class="tool-button" data-tool="addObstacle">
+        <span class="tool-icon icon-obstacle">O</span>
+      </button>
+      <button class="tool-button" data-tool="removeObstacle">
+        <span class="tool-icon icon-obstacle">R</span>
+      </button>
+      <button class="tool-button" data-tool="addSpore">
+        <span class="tool-icon icon-spore">S</span>
+      </button>
+    </div>
     
     <!-- Help button -->
     <button id="helpButton">?</button>
@@ -142,8 +200,24 @@
           <span class="category biology">Biology</span> - Biological properties of the mycelial network<br>
           <span class="category growth">Growth</span> - Controls growth patterns and branching<br>
           <span class="category environment">Environment</span> - Environmental factors and nutrients<br>
-          <span class="category advanced">Advanced</span> - Advanced biological parameters
+          <span class="category advanced">Advanced</span> - Advanced biological parameters<br>
+          <span class="category tool">Tools</span> - Interactive tools to modify the simulation
         </p>
+        
+        <h3>Interactive Tools</h3>
+        <p>Use these tools to interact with the simulation in real-time:</p>
+        <ul>
+          <li><span class="tool-icon icon-nutrient">N</span> <strong>Add Nutrients</strong> - Add food resources for mycelium growth</li>
+          <li><span class="tool-icon icon-moisture">M</span> <strong>Add Moisture</strong> - Increase moisture levels in an area</li>
+          <li><span class="tool-icon icon-obstacle">O</span> <strong>Add Obstacle</strong> - Create barriers that block growth</li>
+          <li><span class="tool-icon icon-obstacle">R</span> <strong>Remove Obstacle</strong> - Remove barriers</li>
+          <li><span class="tool-icon icon-temp">T+</span> <strong>Increase Temperature</strong> - Warm up an area</li>
+          <li><span class="tool-icon icon-temp">T-</span> <strong>Decrease Temperature</strong> - Cool down an area</li>
+          <li><span class="tool-icon icon-ph">pH-</span> <strong>Acidify</strong> - Lower pH level (more acidic)</li>
+          <li><span class="tool-icon icon-ph">pH+</span> <strong>Alkalize</strong> - Raise pH level (more basic)</li>
+          <li><span class="tool-icon icon-spore">S</span> <strong>Add Spore</strong> - Plant a new growth starting point</li>
+        </ul>
+        <p>Click and drag on the canvas to apply the selected tool. Adjust tool strength and size in the toolbar.</p>
         
         <h3>Presets</h3>
         <p>Try different presets to see various growth patterns:</p>
@@ -174,7 +248,10 @@
         const helpButton = document.getElementById('helpButton');
         const helpOverlay = document.getElementById('helpOverlay');
         const closeHelp = document.getElementById('closeHelp');
+        const toolCursor = document.getElementById('toolCursor');
+        const toolButtons = document.querySelectorAll('.tool-button');
         
+        // Help functionality
         helpButton.addEventListener('click', function() {
           helpOverlay.style.display = 'block';
         });
@@ -195,6 +272,68 @@
           if (e.target === helpOverlay) {
             helpOverlay.style.display = 'none';
           }
+        });
+        
+        // Tool cursor functionality
+        document.addEventListener('mousemove', function(e) {
+          if (window.selectedTool && window.selectedTool !== 'none') {
+            toolCursor.style.display = 'block';
+            toolCursor.style.left = e.clientX + 'px';
+            toolCursor.style.top = e.clientY + 'px';
+            
+            // Set cursor size based on tool size
+            if (window.toolOptions && window.toolOptions.toolSize) {
+              const size = Math.max(20, window.toolOptions.toolSize * 2);
+              toolCursor.style.width = size + 'px';
+              toolCursor.style.height = size + 'px';
+              
+              // Set cursor color based on tool type
+              switch(window.selectedTool) {
+                case 'addNutrient':
+                  toolCursor.style.borderColor = '#2ecc71';
+                  toolCursor.style.backgroundColor = 'rgba(46, 204, 113, 0.3)';
+                  break;
+                case 'addMoisture':
+                  toolCursor.style.borderColor = '#3498db';
+                  toolCursor.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
+                  break;
+                case 'addObstacle':
+                case 'removeObstacle':
+                  toolCursor.style.borderColor = '#e74c3c';
+                  toolCursor.style.backgroundColor = 'rgba(231, 76, 60, 0.3)';
+                  break;
+                case 'increaseTemperature':
+                case 'decreaseTemperature':
+                  toolCursor.style.borderColor = '#f39c12';
+                  toolCursor.style.backgroundColor = 'rgba(243, 156, 18, 0.3)';
+                  break;
+                case 'acidify':
+                case 'alkalize':
+                  toolCursor.style.borderColor = '#9b59b6';
+                  toolCursor.style.backgroundColor = 'rgba(155, 89, 182, 0.3)';
+                  break;
+                case 'addSpore':
+                  toolCursor.style.borderColor = '#1abc9c';
+                  toolCursor.style.backgroundColor = 'rgba(26, 188, 156, 0.3)';
+                  break;
+                default:
+                  toolCursor.style.borderColor = 'white';
+                  toolCursor.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+              }
+            }
+          } else {
+            toolCursor.style.display = 'none';
+          }
+        });
+        
+        // Tool palette button functionality
+        toolButtons.forEach(button => {
+          button.addEventListener('click', function() {
+            const tool = this.getAttribute('data-tool');
+            if (window.setSelectedTool) {
+              window.setSelectedTool(tool);
+            }
+          });
         });
       });
     </script>

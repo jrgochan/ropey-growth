@@ -14,6 +14,7 @@ if (!ctx) {
   throw new Error("Canvas context is null.");
 }
 
+// Canvas setup and event handling
 const resizeCanvas = () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -21,16 +22,177 @@ const resizeCanvas = () => {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
+// Selected tool - expose to window for HTML integration
+let selectedTool = "none";
+let toolOptions = {
+  nutrientAmount: 200,
+  nutrientRadius: 3,
+  toolSize: 10,
+  moisture: 50
+};
+
+// Make selectedTool and toolOptions available to the window object
+(window as any).selectedTool = selectedTool;
+(window as any).toolOptions = toolOptions;
+(window as any).setSelectedTool = (tool: string) => {
+  selectedTool = tool;
+  (window as any).selectedTool = tool;
+  
+  // Update cursor style based on selected tool
+  if (tool === "none") {
+    canvas.style.cursor = "default";
+  } else {
+    canvas.style.cursor = "crosshair";
+  }
+};
+
+// Mouse position tracking
+const mouse = { x: 0, y: 0, isDown: false };
+
+// Track mouse position
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - rect.left;
+  mouse.y = e.clientY - rect.top;
+  
+  // If mouse is down and a tool is selected, use the tool
+  if (mouse.isDown && selectedTool !== "none") {
+    useTool(mouse.x, mouse.y);
+  }
+});
+
+// Handle mouse down event
+canvas.addEventListener("mousedown", (e) => {
+  mouse.isDown = true;
+  if (selectedTool !== "none") {
+    useTool(mouse.x, mouse.y);
+  }
+});
+
+// Handle mouse up event
+canvas.addEventListener("mouseup", () => {
+  mouse.isDown = false;
+});
+
+// Handle mouse leaving canvas
+canvas.addEventListener("mouseleave", () => {
+  mouse.isDown = false;
+});
+
+/**
+ * Use the currently selected tool at the specified position
+ */
+function useTool(x: number, y: number) {
+  switch (selectedTool) {
+    case "addNutrient":
+      // Add nutrients with the specified amount and radius
+      // Use more points for a denser nutrient pattern
+      const numPoints = toolOptions.nutrientRadius * 3;
+      for (let i = 0; i < numPoints; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        // Distribute points with higher density toward the center
+        const distanceFactor = Math.pow(Math.random(), 0.7); // More even distribution
+        const distance = distanceFactor * toolOptions.toolSize;
+        const nx = x + Math.cos(angle) * distance;
+        const ny = y + Math.sin(angle) * distance;
+        
+        // Add nutrients with some variation in amount
+        const amount = toolOptions.nutrientAmount * (0.8 + Math.random() * 0.4);
+        envGPU.addNutrient(nx, ny, amount);
+        
+        // No visual feedback during nutrient addition to improve performance
+        // Let the cursor indicator do the visual work
+      }
+      break;
+    case "addMoisture":
+      // Add moisture to the substrate
+      if (envGPU.addMoisture) {
+        for (let i = 0; i < toolOptions.nutrientRadius; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * toolOptions.toolSize;
+          const nx = x + Math.cos(angle) * distance;
+          const ny = y + Math.sin(angle) * distance;
+          envGPU.addMoisture(nx, ny, toolOptions.moisture);
+        }
+      }
+      break;
+    case "addObstacle":
+      // Add obstacle to the substrate
+      if (envGPU.addObstacle) {
+        envGPU.addObstacle(x, y, toolOptions.toolSize);
+      }
+      break;
+    case "removeObstacle":
+      // Remove obstacle from the substrate
+      if (envGPU.removeObstacle) {
+        envGPU.removeObstacle(x, y, toolOptions.toolSize);
+      }
+      break;
+    case "increaseTemperature":
+      // Increase temperature in an area
+      if (envGPU.modifyTemperature) {
+        envGPU.modifyTemperature(x, y, 5, toolOptions.toolSize);
+      }
+      break;
+    case "decreaseTemperature":
+      // Decrease temperature in an area
+      if (envGPU.modifyTemperature) {
+        envGPU.modifyTemperature(x, y, -5, toolOptions.toolSize);
+      }
+      break;
+    case "acidify":
+      // Decrease pH in an area
+      if (envGPU.modifyPh) {
+        envGPU.modifyPh(x, y, -0.5, toolOptions.toolSize);
+      }
+      break;
+    case "alkalize":
+      // Increase pH in an area
+      if (envGPU.modifyPh) {
+        envGPU.modifyPh(x, y, 0.5, toolOptions.toolSize);
+      }
+      break;
+    case "addSpore":
+      // Add spore that can start a new colony
+      if (growth.addSpore) {
+        growth.addSpore(x, y);
+      }
+      break;
+  }
+}
+
 function resetSimulation() {
+  // Add extensive debug logging
+  console.log("--------- STARTING SIMULATION RESET ---------");
+  console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}`);
+  
   // Clear existing growth and environment
   if (growth) {
+    console.log("Clearing previous growth state");
     growth.clear();
   }
 
-  // Reinitialize components
+  // Draw some debug information on canvas
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.font = "20px Arial";
+  ctx.fillStyle = "black";
+  ctx.fillText("Initializing simulation...", 20, 30);
+
+  // Reinitialize all components
+  console.log("Creating new Perlin noise generator");
   perlin = new Perlin();
+  
+  console.log("Creating new EnvironmentGPU");
   envGPU = new EnvironmentGPU(canvas.width, canvas.height);
+  
+  console.log("Creating new MycelialNetwork");
   network = new MycelialNetwork();
+  
+  // Draw startup message
+  console.log("Creating new GrowthManager");
+  ctx.fillText("Creating growth manager...", 20, 60);
 
   // Reset growth manager with updated configuration
   growth = new GrowthManager(
@@ -43,9 +205,18 @@ function resetSimulation() {
     envGPU,
     network,
   );
+  
+  // Draw initialization message
+  ctx.fillText("Initializing growth simulation...", 20, 90);
+  
+  // Initialize the simulation - this creates the initial tips
+  console.log("Initializing growth simulation");
   growth.init();
-
-  console.log("Simulation reset.");
+  
+  // Draw post-init message
+  ctx.fillText(`Growth initialized with ${config.MAIN_BRANCH_COUNT} main branches`, 20, 120);
+  console.log("Initialization complete with " + config.MAIN_BRANCH_COUNT + " main branches");
+  console.log("--------- SIMULATION RESET COMPLETE ---------");
 }
 
 // Global references
@@ -116,14 +287,78 @@ const setup = () => {
   );
   growth.init();
 
+  // Make window aware of the environment for visualizing nutrients
+  (window as any).envGPU = envGPU;
+  (window as any).growth = growth;
+
   console.log("Simulation initialized.");
 };
+
+// Track frame rate and time between frames
+let lastFrameTime = 0;
+let frameCount = 0;
+let frameTime = 0;
+let frameTimes = [];
 
 /**
  * Animation loop to update and render the simulation.
  */
-const animate = () => {
-  growth.updateAndDraw();
+const animate = (currentTime = 0) => {
+  // Calculate time delta and frame rate
+  const deltaTime = currentTime - lastFrameTime;
+  lastFrameTime = currentTime;
+  
+  // Track frame times to calculate average
+  if (deltaTime < 1000) { // Skip outliers from tab switching
+    frameTimes.push(deltaTime);
+    if (frameTimes.length > 30) frameTimes.shift();
+    frameTime = frameTimes.reduce((sum, t) => sum + t, 0) / frameTimes.length;
+    frameCount++;
+  }
+  
+  // Adaptive simulation steps based on performance
+  const targetFrameTime = 16.67; // Target 60fps (16.67ms per frame)
+  const performanceFactor = Math.min(1.5, Math.max(0.25, targetFrameTime / frameTime));
+  
+  // Update simulation with adaptive time step
+  growth.updateAndDraw(currentTime, performanceFactor);
+  
+  // Show FPS counter every 30 frames
+  if (frameCount % 30 === 0) {
+    let fpsDisplay = document.getElementById('fps-counter');
+    if (!fpsDisplay) {
+      fpsDisplay = document.createElement('div');
+      fpsDisplay.id = 'fps-counter';
+      fpsDisplay.style.position = 'fixed';
+      fpsDisplay.style.top = '120px';
+      fpsDisplay.style.left = '20px';
+      fpsDisplay.style.backgroundColor = 'rgba(255,255,255,0.7)';
+      fpsDisplay.style.padding = '5px';
+      fpsDisplay.style.fontFamily = 'monospace';
+      document.body.appendChild(fpsDisplay);
+    }
+    fpsDisplay.style.color = frameTime > 30 ? 'red' : 'black';
+    fpsDisplay.textContent = `FPS: ${(1000 / frameTime).toFixed(1)} (${frameTime.toFixed(1)}ms)`;
+  }
+  
+  // Visual feedback for active tools - simple and not performance intensive
+  if (selectedTool !== "none" && mouse.isDown) {
+    // Only show lighter visual feedback to avoid performance issues
+    const toolColor = selectedTool === "addNutrient" ? "rgba(0, 255, 0, 0.2)" : 
+                     selectedTool === "addMoisture" ? "rgba(0, 100, 255, 0.2)" :
+                     selectedTool === "addSpore" ? "rgba(255, 200, 0, 0.2)" : 
+                     "rgba(255, 255, 255, 0.1)";
+    
+    // Simple circle without gradient for better performance
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = toolColor;
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  
   requestAnimationFrame(animate);
 };
 
@@ -208,6 +443,87 @@ const initGUI = () => {
   
   // Create all folders (but initially hide them)
   const folders = {};
+  
+  // Add tools folder (always visible)
+  const toolsFolder = gui.addFolder('Interactive Tools');
+  
+  const tools = {
+    tool: "none",
+    options: ["none", "addNutrient", "addMoisture", "addObstacle", "removeObstacle", 
+              "increaseTemperature", "decreaseTemperature", "acidify", "alkalize", "addSpore"],
+    toolAmount: 200,
+    toolRadius: 3,
+    toolSize: 10,
+    moisture: 50
+  };
+  
+  // Add tool selector
+  toolsFolder.add(tools, 'tool', tools.options)
+    .name('Select Tool')
+    .onChange((value) => {
+      selectedTool = value;
+      // Update cursor style based on selected tool
+      if (value === "none") {
+        canvas.style.cursor = "default";
+      } else {
+        canvas.style.cursor = "crosshair";
+      }
+    });
+  
+  // Add tool options
+  toolsFolder.add(tools, 'toolAmount', 50, 500)
+    .step(10)
+    .name('Amount')
+    .onChange((value) => {
+      toolOptions.nutrientAmount = value;
+    });
+    
+  toolsFolder.add(tools, 'toolRadius', 1, 10)
+    .step(1)
+    .name('Radius')
+    .onChange((value) => {
+      toolOptions.nutrientRadius = value;
+    });
+    
+  toolsFolder.add(tools, 'toolSize', 5, 50)
+    .step(1)
+    .name('Tool Size')
+    .onChange((value) => {
+      toolOptions.toolSize = value;
+    });
+    
+  toolsFolder.add(tools, 'moisture', 10, 200)
+    .step(10)
+    .name('Moisture')
+    .onChange((value) => {
+      toolOptions.moisture = value;
+    });
+  
+  toolsFolder.open();
+  
+  // Add tool descriptions
+  const toolInfo = {
+    showHelp: () => {
+      const helpContent = 
+        "<strong>Tools Help:</strong><br>" +
+        "<ul>" +
+        "<li><strong>addNutrient</strong>: Add nutrients to help mycelium grow</li>" +
+        "<li><strong>addMoisture</strong>: Add moisture to the substrate</li>" +
+        "<li><strong>addObstacle</strong>: Add physical barriers to growth</li>" +
+        "<li><strong>removeObstacle</strong>: Remove barriers</li>" +
+        "<li><strong>increaseTemperature</strong>: Make area warmer</li>" +
+        "<li><strong>decreaseTemperature</strong>: Make area cooler</li>" +
+        "<li><strong>acidify</strong>: Lower pH in area</li>" +
+        "<li><strong>alkalize</strong>: Raise pH in area</li>" +
+        "<li><strong>addSpore</strong>: Plant a new growth point</li>" +
+        "</ul>" +
+        "Click and drag on the canvas to apply the selected tool.";
+      
+      alert(helpContent);
+    }
+  };
+  
+  toolsFolder.add(toolInfo, 'showHelp').name('Tool Help');
   
   // Restart button (always visible)
   gui.add({ restart: () => setup() }, "restart").name("Restart Simulation");

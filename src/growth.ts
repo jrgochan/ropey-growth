@@ -35,6 +35,88 @@ export interface HyphaTip {
 export class GrowthManager {
   private tips: HyphaTip[] = [];
   private growthRadius: number;
+  
+  /**
+   * Adds a spore at the specified location that will begin growing a new colony
+   * @param x - X-coordinate to place the spore
+   * @param y - Y-coordinate to place the spore
+   */
+  public addSpore(x: number, y: number): void {
+    // Create multiple new tips starting from the spore location
+    const numSporeHyphae = Math.floor(Math.random() * 5) + 3; // 3-8 initial hyphae
+    
+    for (let i = 0; i < numSporeHyphae; i++) {
+      // Create tips in all directions from the spore
+      const angle = (i / numSporeHyphae) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      
+      // Create a new hyphal tip
+      const newTip: HyphaTip = {
+        x: x,
+        y: y,
+        angle: angle,
+        life: config.BASE_LIFE * 0.7, // Slightly less life than main tips
+        depth: 0,
+        growthType: "main", // These are main branches for the new colony
+        resource: config.INITIAL_RESOURCE_PER_TIP * 0.8, // Start with somewhat reduced resources
+        age: 0,
+        maturity: 0,
+        enzymeActivity: 0.5 + Math.random() * 0.5,
+        carbonNutrient: config.INITIAL_RESOURCE_PER_TIP * 0.7 * 0.8, // 70% carbon
+        nitrogenNutrient: config.INITIAL_RESOURCE_PER_TIP * 0.3 * 0.8, // 30% nitrogen
+        temperatureSensitivity: Math.random() * 0.3 + 0.3,
+        phSensitivity: Math.random() * 0.3 + 0.3,
+        basalRespirationRate: (config.HYPHAL_RESPIRATION_RATE || 0.02) * (0.8 + Math.random() * 0.4),
+        lastBranchingTime: 0,
+        specialization: 0,
+        apicalDominanceStrength: 0.5
+      };
+      
+      // Add the tip to the collection
+      this.tips.push(newTip);
+      
+      // Create a network node for this tip
+      const nodeId = this.network.createNode(x, y, newTip.resource);
+      
+      // Visualize the spore
+      this.drawSpore(x, y);
+      
+      // Add nutrients around the spore to help it get started
+      this.envGPU.addNutrient(x, y, config.NUTRIENT_POCKET_AMOUNT * 0.5);
+    }
+    
+    console.log(`Spore added at (${x}, ${y}) with ${numSporeHyphae} initial hyphae`);
+  }
+  
+  /**
+   * Draws a spore at the specified location
+   * @param x - X-coordinate of the spore
+   * @param y - Y-coordinate of the spore
+   */
+  private drawSpore(x: number, y: number): void {
+    const radius = 5;
+    
+    // Draw spore body
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+    this.ctx.fillStyle = `hsl(${config.BASE_HUE}, 70%, 50%)`;
+    this.ctx.fill();
+    
+    // Draw spore outline
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+    this.ctx.strokeStyle = `hsl(${config.BASE_HUE}, 90%, 30%)`;
+    this.ctx.lineWidth = 1.5;
+    this.ctx.stroke();
+    
+    // Add a glow effect
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, radius * 2, 0, Math.PI * 2);
+    const gradient = this.ctx.createRadialGradient(x, y, radius, x, y, radius * 2);
+    gradient.addColorStop(0, `hsla(${config.BASE_HUE}, 70%, 50%, 0.5)`);
+    gradient.addColorStop(1, `hsla(${config.BASE_HUE}, 70%, 50%, 0)`);
+    this.ctx.fillStyle = gradient;
+    this.ctx.fill();
+  }
 
   /**
    * Constructor initializes the GrowthManager.
@@ -76,15 +158,69 @@ export class GrowthManager {
     if ('setEnvironment' in this.network) {
       this.network.setEnvironment(this.envGPU);
     }
+    
+    // Reset the network
+    this.network.resetNetwork();
+    
+    console.log("Growth manager initialized, now creating main trunks...");
 
-    // Create main trunks from the center
+    // Add initial nutrients in center to ensure growth begins well
+    this.setupInitialNutrients();
+    
+    // Create initial trunks
+    this.createMainTrunks();
+  }
+  
+  /**
+   * Sets up initial nutrients distribution to support healthy central growth
+   */
+  private setupInitialNutrients() {
+    // Create a high nutrient concentration in the center
+    const centerRadius = this.growthRadius * 0.4;
+    
+    // Dense central nutrients
+    for (let i = 0; i < 30; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const distanceFactor = Math.pow(Math.random(), 0.7); // More central concentration
+      const distance = distanceFactor * centerRadius;
+      
+      const x = this.centerX + Math.cos(angle) * distance;
+      const y = this.centerY + Math.sin(angle) * distance;
+      
+      // Higher nutrient amount in center
+      const amount = (0.9 + 0.6 * Math.random()) * config.NUTRIENT_POCKET_AMOUNT;
+      this.envGPU.addNutrient(x, y, amount);
+    }
+    
+    // Also add some moisture for healthy growth
+    for (let i = 0; i < 20; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * centerRadius * 1.2;
+      
+      const x = this.centerX + Math.cos(angle) * distance;
+      const y = this.centerY + Math.sin(angle) * distance;
+      
+      if (this.envGPU.addMoisture) {
+        this.envGPU.addMoisture(x, y, 50 + Math.random() * 50);
+      }
+    }
+  }
+  
+  /**
+   * Creates the main growth trunks from the center
+   */
+  private createMainTrunks() {
+    // Force clear any existing tips to avoid duplicate creation
+    this.tips = [];
+    
+    // Create main trunks from the center with debug visualization
     for (let i = 0; i < config.MAIN_BRANCH_COUNT; i++) {
       // Calculate a more uniform distribution of angles
       const angle = (i / config.MAIN_BRANCH_COUNT) * Math.PI * 2;
-      // Add a small random variation to each angle
-      const angleVariation = (Math.random() - 0.5) * (Math.PI / config.MAIN_BRANCH_COUNT);
+      // Add a small random variation to prevent perfect symmetry
+      const angleVariation = (Math.random() - 0.5) * (Math.PI / 16);
       
-      // Create a more biologically realistic hyphal tip
+      // Create a more biologically realistic hyphal tip with debug info
       const newTip: HyphaTip = {
         x: this.centerX,
         y: this.centerY,
@@ -107,9 +243,30 @@ export class GrowthManager {
         apicalDominanceStrength: i < config.MAIN_BRANCH_COUNT / 3 ? 0.8 : 0.3 // Main branches have stronger apical dominance
       };
       
+      // Draw a marker where this tip will start
+      this.ctx.fillStyle = `hsl(${i * 360 / config.MAIN_BRANCH_COUNT}, 100%, 50%)`;
+      this.ctx.beginPath();
+      this.ctx.arc(this.centerX, this.centerY, 5, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      // Draw a line showing the initial direction
+      this.ctx.strokeStyle = `hsl(${i * 360 / config.MAIN_BRANCH_COUNT}, 100%, 50%)`;
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.centerX, this.centerY);
+      this.ctx.lineTo(
+        this.centerX + Math.cos(angle) * 20,
+        this.centerY + Math.sin(angle) * 20
+      );
+      this.ctx.stroke();
+      
+      // Add the tip
       this.tips.push(newTip);
+      
+      // Debug log
+      console.log(`Created tip ${i} at angle ${angle.toFixed(2)} (${(angle * 180 / Math.PI).toFixed(0)}°)`);
     }
-
+    
     // Create network nodes for each main branch
     this.tips.forEach((tip) => {
       const nodeId = this.network.createNode(tip.x, tip.y, tip.resource);
@@ -189,64 +346,141 @@ export class GrowthManager {
   /**
    * Updates the simulation and renders the growth lines.
    * @param currentTime - The current timestamp in milliseconds.
+   * @param performanceFactor - Factor to adjust simulation steps based on performance (1.0 = normal).
    */
-  public updateAndDraw(currentTime: number = 0) {
+  public updateAndDraw(currentTime: number = 0, performanceFactor: number = 1.0) {
     // Increment simulation time
     this.simulationTime++;
     
-    // Apply a mild fade to create a trailing effect
-    this.ctx.fillStyle = `rgba(0, 0, 0, ${config.BACKGROUND_ALPHA})`;
+    // Reduce debug logging frequency
+    if (this.simulationTime % 1000 === 0) {
+      console.log(`Simulation time: ${this.simulationTime}, Active tips: ${this.tips.length}`);
+      this.debugTips();
+    }
+    
+    // Always draw status information at the top of the screen
+    this.ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    this.ctx.fillRect(10, 10, 300, 110);
+    
+    this.ctx.font = "16px Arial";
+    this.ctx.fillStyle = "black";
+    this.ctx.fillText(`Simulation time: ${this.simulationTime}`, 20, 30);
+    this.ctx.fillText(`Active tips: ${this.tips.length}`, 20, 50);
+    this.ctx.fillText(`Growth radius: ${this.growthRadius}`, 20, 70);
+    this.ctx.fillText(`Main branches: ${config.MAIN_BRANCH_COUNT}`, 20, 90);
+    
+    // Additional debug info only during early simulation
+    if (this.simulationTime <= 10) {
+      // Draw circles at initial starting points
+      this.ctx.strokeStyle = "blue";
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      this.ctx.arc(this.centerX, this.centerY, 10, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
+    
+    // Apply fade with higher opacity for better trail effect
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
     this.ctx.fillRect(0, 0, this.width, this.height);
     
-    // Draw growth circle boundary for debugging
-    this.ctx.beginPath();
-    this.ctx.arc(this.centerX, this.centerY, this.growthRadius, 0, Math.PI * 2);
-    this.ctx.strokeStyle = "rgba(255, 100, 100, 0.2)";
-    this.ctx.lineWidth = 1;
-    this.ctx.stroke();
+    // Draw growth circle boundary for debugging only occasionally
+    if (this.simulationTime % 5 === 0) {
+      this.ctx.beginPath();
+      this.ctx.arc(this.centerX, this.centerY, this.growthRadius, 0, Math.PI * 2);
+      this.ctx.strokeStyle = "rgba(255, 100, 100, 0.2)";
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+    }
 
     // Update environmental cycles if using advanced substrate
     if (this.substrate) {
       // Update substrate processes
       this.substrate.updateEnvironmentalCycles();
       
-      // Update enzyme activity and diffusion
-      this.substrate.updateEnzymeActivity();
+      // Less frequent updates for non-essential processes
+      if (this.simulationTime % 2 === 0) {
+        // Update enzyme activity and diffusion
+        this.substrate.updateEnzymeActivity();
+        
+        // Diffuse substrate components
+        this.substrate.diffuseSubstrate();
+      }
       
-      // Diffuse substrate components
-      this.substrate.diffuseSubstrate();
-      
-      // Render substrate (optional - for visualization)
-      if (config.BACKGROUND_ALPHA > 0) {
+      // Render substrate less frequently
+      if (config.BACKGROUND_ALPHA > 0 && this.simulationTime % 3 === 0) {
         this.substrate.renderSubstrate(this.ctx, 'nutrients');
       }
     } else {
-      // Use simpler environment model
-      // Periodically diffuse nutrients in the environment (every 5 frames)
-      if (this.simulationTime % 5 === 0) {
+      // Use simpler environment model with adaptive frequency
+      // Periodically diffuse nutrients in the environment (scaled by performance)
+      const diffuseFrequency = Math.max(5, Math.floor(5 / performanceFactor));
+      if (this.simulationTime % diffuseFrequency === 0) {
         this.envGPU.diffuseNutrients();
       }
       
-      // Periodically add new nutrient pockets (every 100 frames - more frequent replenishment)
-      if (this.simulationTime % 100 === 0) {
+      // Reduce nutrient pocket creation frequency when performance is low
+      const pocketFrequency = Math.max(100, Math.floor(100 / performanceFactor));
+      if (this.simulationTime % pocketFrequency === 0) {
         // Add random nutrient pockets throughout the growth radius
         for (let i = 0; i < 3; i++) { // Add multiple pockets at once
-          const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * this.growthRadius * 0.95; // Extend almost to boundary
-        
-        const pocketX = this.centerX + Math.cos(angle) * distance;
-        const pocketY = this.centerY + Math.sin(angle) * distance;
-        
-        this.envGPU.addNutrient(
-          pocketX, 
-          pocketY, 
-          config.NUTRIENT_POCKET_AMOUNT * 0.7 * (1 + Math.random()) // Increased nutrient amount
-        );
+          let angle, distance, pocketX, pocketY;
+          
+          // 40% chance to add nutrients closer to center to support central growth
+          if (Math.random() < 0.4) {
+            angle = Math.random() * Math.PI * 2;
+            // Central region distribution (inner 50% of radius)
+            distance = Math.random() * this.growthRadius * 0.5;
+            
+            pocketX = this.centerX + Math.cos(angle) * distance;
+            pocketY = this.centerY + Math.sin(angle) * distance;
+            
+            // Higher nutrient density in center
+            this.envGPU.addNutrient(
+              pocketX, 
+              pocketY, 
+              config.NUTRIENT_POCKET_AMOUNT * 1.2 * (1 + Math.random()) // Higher amount
+            );
+          } else {
+            // Outer region distribution
+            angle = Math.random() * Math.PI * 2;
+            // Use weighted distribution favoring outer area
+            const r = Math.random();
+            distance = (0.5 + 0.45 * r) * this.growthRadius; // 50%-95% of radius
+            
+            pocketX = this.centerX + Math.cos(angle) * distance;
+            pocketY = this.centerY + Math.sin(angle) * distance;
+            
+            this.envGPU.addNutrient(
+              pocketX, 
+              pocketY, 
+              config.NUTRIENT_POCKET_AMOUNT * 0.7 * (1 + Math.random())
+            );
+          }
         }
       }
       
-      // Enhance growth near the edge of the circle (every 300 frames)
-      if (this.simulationTime % 300 === 0) {
+      // Periodically add a small boost in the center to maintain central growth
+      if (this.simulationTime % 170 === 0) {
+        // Add a small central nutrient boost
+        const centerBoostRadius = this.growthRadius * 0.25;
+        for (let i = 0; i < 4; i++) {
+          const angle = (i / 4) * Math.PI * 2; // Evenly spaced angles
+          const distance = centerBoostRadius * Math.random();
+          
+          const boostX = this.centerX + Math.cos(angle) * distance;
+          const boostY = this.centerY + Math.sin(angle) * distance;
+          
+          this.envGPU.addNutrient(
+            boostX, 
+            boostY, 
+            config.NUTRIENT_POCKET_AMOUNT * 0.8
+          );
+        }
+      }
+      
+      // Edge growth enhancement with adaptive frequency
+      const edgeFrequency = Math.max(300, Math.floor(300 / performanceFactor));
+      if (this.simulationTime % edgeFrequency === 0) {
         // Add a ring of nutrients near the boundary to stimulate growth
         for (let i = 0; i < 8; i++) {
           const angle = (i / 8) * Math.PI * 2;
@@ -264,12 +498,17 @@ export class GrowthManager {
       }
     }
 
-    // Update reproduction processes if using reproduction manager
+    // Update reproduction processes if using reproduction manager (less frequently when performance is low)
     if (this.reproductionManager) {
-      this.reproductionManager.update(this.simulationTime);
+      const reproFrequency = Math.max(1, Math.floor(2 / performanceFactor));
       
-      // Check for mature spores to germinate
-      if (this.simulationTime % 100 === 0) {
+      if (this.simulationTime % reproFrequency === 0) {
+        this.reproductionManager.update(this.simulationTime);
+      }
+      
+      // Check for mature spores to germinate (less frequently)
+      const germFrequency = Math.max(100, Math.floor(100 / performanceFactor));
+      if (this.simulationTime % germFrequency === 0) {
         const matureSpores = this.reproductionManager.getMatureSpores();
         
         // Germinate mature spores as new hyphal tips
@@ -279,18 +518,30 @@ export class GrowthManager {
         }
       }
       
-      // Render reproductive structures
-      this.reproductionManager.render(this.ctx);
+      // Only render reproductive structures every few frames
+      if (this.simulationTime % 3 === 0) {
+        this.reproductionManager.render(this.ctx);
+      }
     }
 
-    // Perform multiple simulation steps per frame based on TIME_LAPSE_FACTOR
-    const totalSteps = config.TIME_LAPSE_FACTOR;
+    // Perform multiple simulation steps per frame based on TIME_LAPSE_FACTOR and performanceFactor
+    // Use adaptive step count based on performance
+    const baseSteps = config.TIME_LAPSE_FACTOR;
+    const adaptiveSteps = Math.max(1, Math.round(baseSteps * performanceFactor));
+    
+    // Cap at 2x the normal steps to maintain simulation stability
+    const totalSteps = Math.min(baseSteps * 2, adaptiveSteps);
+    
     for (let i = 0; i < totalSteps; i++) {
       this.simOneStep();
     }
 
-    // Handle resource flow within the network
-    this.network.flowResources();
+    // Only do resource flow calculations when needed based on performance
+    const flowFrequency = Math.max(1, Math.floor(1 / performanceFactor));
+    if (this.simulationTime % flowFrequency === 0) {
+      // Handle resource flow within the network
+      this.network.flowResources();
+    }
   }
   
   /**
@@ -336,12 +587,30 @@ export class GrowthManager {
    * Simulates a single step of hyphal growth.
    */
   private simOneStep() {
+    // Added debug visual indicator of simulation steps
+    if (this.simulationTime < 5) {
+      this.ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
+      this.ctx.beginPath();
+      this.ctx.arc(this.centerX, this.centerY, 20, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      this.ctx.font = "16px Arial";
+      this.ctx.fillStyle = "black";
+      this.ctx.fillText(`Simulation step: ${this.simulationTime}`, this.centerX + 30, this.centerY);
+    }
+    
     const newTips: HyphaTip[] = [];
     const activeNodeIds: Map<HyphaTip, number> = new Map(); // Track active node IDs for each tip
-
-    // Debug tip count
-    if (this.simulationTime % 100 === 0) {
-      console.log(`Active tips: ${this.tips.length}, Simulation time: ${this.simulationTime}`);
+    
+    // Debug info if no tips, but create them instead of showing error
+    if (this.tips.length === 0) {
+      console.log("No tips available - creating initial ones");
+      
+      // Create some initial tips instead of showing error
+      this.createMainTrunks();
+      
+      // Since we just added tips, log success
+      console.log(`Created ${this.tips.length} initial tips`);
     }
 
     for (const tip of this.tips) {
@@ -356,21 +625,26 @@ export class GrowthManager {
       
       // BASAL METABOLISM - Consume resources for maintenance
       // Real fungi have a maintenance cost even when not growing
-      // Use much lower respiration rate for now to prevent tips from dying too quickly
-      // Further reduced respiration rate to prevent central die-off
-      const baseRespirationRate = tip.basalRespirationRate * 0.05; // Reduced by 95% for better simulation
+      // Dramatically reduced respiration rate to prevent tips from dying too quickly
+      const baseRespirationRate = tip.basalRespirationRate * 0.01; // Reduced by 99% for better simulation
       
-      // Distance from center factor - farther from center = higher respiration (encouraging central network persistence)
+      // Distance from center factor - need to keep central hyphae alive
       const centerDist = Math.hypot(tip.x - this.centerX, tip.y - this.centerY);
       const maxDist = this.growthRadius * 0.8;
       const distFactor = Math.min(1, centerDist / maxDist);
       
-      // Apply distance-based scaling to respiration (center hyphae consume much less)
-      // Even more reduced respiration for central hyphae to ensure they persist
-      const adjustedRespiration = baseRespirationRate * (0.05 + distFactor * 0.95);
+      // Inverse scale - central hyphae have dramatically reduced respiration
+      // Center: 0.001, Edge: ~0.2 times base rate, steep curve to prioritize central persistence
+      const inverseFactor = 0.001 + Math.pow(distFactor, 3) * 0.2;
       
-      tip.carbonNutrient -= adjustedRespiration * (environmentalFactors.temperatureFactor || 1);
-      tip.nitrogenNutrient -= adjustedRespiration * 0.1 * (environmentalFactors.temperatureFactor || 1);
+      // Apply distance-based scaling to respiration (center hyphae consume almost nothing)
+      const adjustedRespiration = baseRespirationRate * inverseFactor;
+      
+      // Further reduce respiration globally to prevent die-offs
+      const finalRespiration = adjustedRespiration * 0.1;
+      
+      tip.carbonNutrient -= finalRespiration * (environmentalFactors.temperatureFactor || 1);
+      tip.nitrogenNutrient -= finalRespiration * 0.1 * (environmentalFactors.temperatureFactor || 1);
       
       // Apply daily and seasonal cycles if supported and enabled
       if (environmentalFactors.circadianFactor && 
@@ -574,9 +848,21 @@ export class GrowthManager {
       
       const actualStepSize = config.STEP_SIZE * growthMultiplier;
       
-      // 8. MOVE THE TIP
-      tip.x += dirX * actualStepSize * config.GROWTH_SPEED_MULTIPLIER;
-      tip.y += dirY * actualStepSize * config.GROWTH_SPEED_MULTIPLIER;
+      // 8. MOVE THE TIP - Fixed step size to fix growth issues
+      // Use a guaranteed direct step size to ensure proper growth
+      const fixedStepSize = 5.0; // Hard-coded significant step size for all tips
+      
+      // Move tip in current direction with fixed step size
+      tip.x += dirX * fixedStepSize;
+      tip.y += dirY * fixedStepSize;
+      
+      // Debug visualization for first few steps
+      if (this.simulationTime < 5) {
+        this.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+        this.ctx.beginPath();
+        this.ctx.arc(tip.x, tip.y, 5, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
       
       // Draw the growth segment from old to new position
       this.drawSegment(
@@ -700,7 +986,7 @@ export class GrowthManager {
         }
       }
       
-      // Draw the segment
+      // Force draw every segment to ensure visibility
       this.drawSegment(
         oldX, 
         oldY, 
@@ -731,18 +1017,26 @@ export class GrowthManager {
         (tip.resource / config.INITIAL_RESOURCE_PER_TIP);
       
       // Branching is affected by many factors
-      const baseBranchChance = config.BRANCH_CHANCE * (tip.age > 10 ? 1 : 0.2);
+      // Force much higher branching chance to kickstart growth
+      const forceBranching = this.simulationTime < 20;
+      const baseBranchChance = forceBranching ? 0.9 : config.BRANCH_CHANCE * (tip.age > 10 ? 1 : 0.2);
       
-      // Calculate adjusted branch chance
-      let adjustedBranchChance = baseBranchChance * 
+      // Calculate adjusted branch chance - force high branching early on
+      let adjustedBranchChance = forceBranching ? 0.8 : (
+        baseBranchChance * 
         (resourceFactor * 0.7 + 0.3) *               // Resources (70% influence)
         (nutrientRichness * 0.5 + 0.5) *             // Local nutrients (50% influence)
         Math.min(1, moistureFactor * 1.2) *          // Moisture (can boost by 20%)
         (1 - tip.specialization * 0.5) *             // Specialization reduces branching
-        (1 - apicalSuppressionFactor);               // Apical dominance suppresses branching
+        (1 - apicalSuppressionFactor)                // Apical dominance suppresses branching
+      );
         
       // Age affects branching - young tips rarely branch, old tips branch less
-      if (tip.age < 20) {
+      // Override during initial growth phase to force visible branching
+      if (this.simulationTime < 20) {
+        // Force high branching in early simulation
+        adjustedBranchChance = Math.max(adjustedBranchChance, 0.8);
+      } else if (tip.age < 20) {
         adjustedBranchChance *= 0.2;
       } else if (tip.age > 200) {
         adjustedBranchChance *= 0.7;
@@ -857,67 +1151,114 @@ export class GrowthManager {
       }
     }
 
-    // 14. ANASTOMOSIS PROCESS - Complex biological fusion
+    // Spatial partitioning grid for faster anastomosis checks
+    const partitionSize = config.ANASTOMOSIS_RADIUS * 3; // Size of each partition cell
+    const partitions = new Map<string, HyphaTip[]>(); // Partition grid
+    
+    // Place existing tips in spatial partitions
+    for (const tip of this.tips) {
+      if (tip.life <= 0) continue;
+      
+      const partX = Math.floor(tip.x / partitionSize);
+      const partY = Math.floor(tip.y / partitionSize);
+      const partKey = `${partX},${partY}`;
+      
+      if (!partitions.has(partKey)) {
+        partitions.set(partKey, []);
+      }
+      partitions.get(partKey)!.push(tip);
+    }
+    
+    // 14. ANASTOMOSIS PROCESS - Complex biological fusion with spatial optimization
+    const tipsToAdd: HyphaTip[] = [];
+    
     for (const newTip of newTips) {
       let fusionOccurred = false;
       
-      // Check for nearby tips for anastomosis
-      for (const existingTip of this.tips) {
-        if (existingTip.life <= 0) continue;
-        
-        const distance = Math.hypot(newTip.x - existingTip.x, newTip.y - existingTip.y);
-        
-        // Increased likelihood of anastomosis between different growth types
-        const differentGrowthType = existingTip.growthType !== newTip.growthType;
-        
-        // Specialized types have different anastomosis behavior
-        let anastomosisModifier = 1.0;
-        if (existingTip.growthType === "rhizomorph" || newTip.growthType === "rhizomorph") {
-          // Rhizomorphs anastomose less frequently (more directional growth)
-          anastomosisModifier = 0.7;
-        } else if (existingTip.growthType === "aerial" || newTip.growthType === "aerial") {
-          // Aerial hyphae rarely anastomose
-          anastomosisModifier = 0.3;
-        } else if (existingTip.growthType === "reproductive" || newTip.growthType === "reproductive") {
-          // Reproductive structures don't anastomose
-          anastomosisModifier = 0;
-        }
-        
-        // Different growth types fuse at full radius, same type at reduced radius
-        const effectiveRadius = (differentGrowthType ? 
-          config.ANASTOMOSIS_RADIUS : 
-          config.ANASTOMOSIS_RADIUS * 0.6) * anastomosisModifier;
-        
-        // Check if fusion occurs
-        if (distance < effectiveRadius) {
-          fusionOccurred = true;
+      // Find which partition this tip belongs to
+      const partX = Math.floor(newTip.x / partitionSize);
+      const partY = Math.floor(newTip.y / partitionSize);
+      
+      // Check the current partition and adjacent partitions
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const checkKey = `${partX + dx},${partY + dy}`;
+          const tipsInPartition = partitions.get(checkKey);
           
-          // If anastomosis occurs, connect the network nodes
-          if (activeNodeIds.has(existingTip)) {
-            const existingNodeId = activeNodeIds.get(existingTip);
+          if (!tipsInPartition) continue;
+          
+          // Check only tips in this partition
+          for (const existingTip of tipsInPartition) {
+            if (existingTip.life <= 0) continue;
             
-            // Create a node for the new tip at the fusion point
-            const fusionNodeId = this.network.createNode(
-              existingTip.x, 
-              existingTip.y, 
-              (existingTip.resource + newTip.resource) * 0.5  // Average resources
-            );
+            // Use squared distance for performance (avoid square root)
+            const dx = newTip.x - existingTip.x;
+            const dy = newTip.y - existingTip.y;
+            const distanceSquared = dx * dx + dy * dy;
             
-            // Connect these nodes to create a network loop
-            if (existingNodeId !== undefined) {
-              this.network.connectNodes(existingNodeId, fusionNodeId);
+            // Increased likelihood of anastomosis between different growth types
+            const differentGrowthType = existingTip.growthType !== newTip.growthType;
+            
+            // Specialized types have different anastomosis behavior
+            let anastomosisModifier = 1.0;
+            if (existingTip.growthType === "rhizomorph" || newTip.growthType === "rhizomorph") {
+              // Rhizomorphs anastomose less frequently (more directional growth)
+              anastomosisModifier = 0.7;
+            } else if (existingTip.growthType === "aerial" || newTip.growthType === "aerial") {
+              // Aerial hyphae rarely anastomose
+              anastomosisModifier = 0.3;
+            } else if (existingTip.growthType === "reproductive" || newTip.growthType === "reproductive") {
+              // Reproductive structures don't anastomose
+              anastomosisModifier = 0;
+            }
+            
+            // Different growth types fuse at full radius, same type at reduced radius
+            const effectiveRadius = (differentGrowthType ? 
+              config.ANASTOMOSIS_RADIUS : 
+              config.ANASTOMOSIS_RADIUS * 0.6) * anastomosisModifier;
+            
+            // Square the radius for comparison with squared distance
+            const radiusSquared = effectiveRadius * effectiveRadius;
+            
+            // Check if fusion occurs
+            if (distanceSquared < radiusSquared) {
+              fusionOccurred = true;
+              
+              // If anastomosis occurs, connect the network nodes
+              if (activeNodeIds.has(existingTip)) {
+                const existingNodeId = activeNodeIds.get(existingTip);
+                
+                // Create a node for the new tip at the fusion point
+                const fusionNodeId = this.network.createNode(
+                  existingTip.x, 
+                  existingTip.y, 
+                  (existingTip.resource + newTip.resource) * 0.5  // Average resources
+                );
+                
+                // Connect these nodes to create a network loop
+                if (existingNodeId !== undefined) {
+                  this.network.connectNodes(existingNodeId, fusionNodeId);
+                }
+              }
+              
+              break; // Found fusion partner, stop checking
             }
           }
           
-          break; // Found fusion partner, stop checking
+          if (fusionOccurred) break;
         }
+        
+        if (fusionOccurred) break;
       }
       
       // If no fusion occurred, add the new tip
       if (!fusionOccurred) {
-        this.tips.push(newTip);
+        tipsToAdd.push(newTip);
       }
     }
+    
+    // Batch add new tips to avoid array mutations in the loop
+    this.tips.push(...tipsToAdd);
 
     // 15. ADVANCED LIFECYCLE EVENTS
     // Check for reproduction opportunities
@@ -940,27 +1281,68 @@ export class GrowthManager {
       }
     }
 
-    // Remove dead tips
-    this.tips = this.tips.filter((t) => t.life > 0);
+    // Remove dead tips - use in-place filtering for better performance
+    let activeIndex = 0;
+    for (let i = 0; i < this.tips.length; i++) {
+      if (this.tips[i].life > 0) {
+        if (i !== activeIndex) {
+          this.tips[activeIndex] = this.tips[i];
+        }
+        activeIndex++;
+      }
+    }
+    this.tips.length = activeIndex;
 
     // Tip Culling to Control Performance
     const MAX_ACTIVE_TIPS = 5000; // Increased max tips for denser growth
-    if (this.tips.length > MAX_ACTIVE_TIPS) {
-      // Sort tips by distance from center to keep those most likely to form main structures
-      this.tips.sort((a, b) => {
-        // Calculate distances
-        const distA = Math.hypot(a.x - this.centerX, a.y - this.centerY);
-        const distB = Math.hypot(b.x - this.centerX, b.y - this.centerY);
-        
-        // Keep rhizomorphs and more distant tips preferentially
-        const aFactor = a.growthType === "rhizomorph" ? -100 : (a.resource > 500 ? -50 : 0);
-        const bFactor = b.growthType === "rhizomorph" ? -100 : (b.resource > 500 ? -50 : 0);
-        
-        return (distA + aFactor) - (distB + bFactor);
-      });
+    
+    // Only do the expensive sort if we're significantly over the limit
+    if (this.tips.length > MAX_ACTIVE_TIPS * 1.1) {
+      // Use a faster selection algorithm instead of sorting the entire array
+      // Compute importance scores for all tips
+      const scores: {index: number, score: number}[] = [];
       
-      // Remove least important tips
-      this.tips.splice(0, this.tips.length - MAX_ACTIVE_TIPS);
+      for (let i = 0; i < this.tips.length; i++) {
+        const tip = this.tips[i];
+        
+        // Calculate distance more efficiently
+        const dx = tip.x - this.centerX;
+        const dy = tip.y - this.centerY;
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        
+        // Calculate importance score (higher = more important)
+        let importanceScore = 0;
+
+        // Dramatic U-shaped curve - prioritize BOTH center and edge
+        // This creates a strong network in center and allows expansion at edges
+        if (distance < this.growthRadius * 0.3) {
+          // Central tips get very high priority (higher closer to center)
+          importanceScore += 150 * (1 - distance / (this.growthRadius * 0.3));
+        } else if (distance > this.growthRadius * 0.7) {
+          // Outer edge tips also get high priority
+          importanceScore += 80 * ((distance / this.growthRadius) - 0.7) / 0.3;
+        }
+        
+        // Add bonuses for certain types
+        if (tip.growthType === "rhizomorph") importanceScore += 100;
+        else if (tip.resource > 500) importanceScore += 50;
+        
+        // Additional bonus for tips with higher resources
+        importanceScore += Math.min(30, tip.resource / 50);
+        
+        scores.push({index: i, score: importanceScore});
+      }
+      
+      // Sort only the scores array (much faster than sorting the tips array)
+      scores.sort((a, b) => b.score - a.score);
+      
+      // Keep only the MAX_ACTIVE_TIPS most important tips
+      const newTips: HyphaTip[] = [];
+      for (let i = 0; i < Math.min(MAX_ACTIVE_TIPS, scores.length); i++) {
+        newTips.push(this.tips[scores[i].index]);
+      }
+      
+      this.tips = newTips;
     }
   }
   
@@ -1046,20 +1428,34 @@ export class GrowthManager {
    * Gets line thickness based on hyphal type
    */
   private getLineThicknessForTip(tip: HyphaTip): number {
+    // Base thickness by growth type
+    let baseThickness: number;
     switch (tip.growthType) {
       case "main":
-        return config.MAIN_LINE_WIDTH;
+        baseThickness = config.MAIN_LINE_WIDTH;
+        break;
       case "secondary":
-        return config.SECONDARY_LINE_WIDTH;
+        baseThickness = config.SECONDARY_LINE_WIDTH;
+        break;
       case "rhizomorph":
-        return config.MAIN_LINE_WIDTH * 1.5; // Thicker transport structures
+        baseThickness = config.MAIN_LINE_WIDTH * 1.8; // Significantly thicker transport structures
+        break;
       case "aerial":
-        return config.SECONDARY_LINE_WIDTH * 0.8; // Thinner aerial hyphae
+        baseThickness = config.SECONDARY_LINE_WIDTH * 0.8; // Thinner aerial hyphae
+        break;
       case "reproductive":
-        return config.MAIN_LINE_WIDTH * 0.7; // Reproductive structures
+        baseThickness = config.MAIN_LINE_WIDTH * 0.7; // Reproductive structures
+        break;
       default:
-        return config.SECONDARY_LINE_WIDTH;
+        baseThickness = config.SECONDARY_LINE_WIDTH;
     }
+    
+    // Adjust thickness based on tip age and resource level
+    // Older tips with more resources get thicker
+    const ageBonus = Math.min(1.0, tip.age / 300) * 0.3; // Up to 30% bonus for older tips
+    const resourceBonus = Math.min(1.0, tip.resource / (config.INITIAL_RESOURCE_PER_TIP * 1.5)) * 0.2; // Up to 20% bonus for resource-rich tips
+    
+    return baseThickness * (1 + ageBonus + resourceBonus);
   }
   
   /**
@@ -1069,6 +1465,40 @@ export class GrowthManager {
     while (angle > Math.PI) angle -= 2 * Math.PI;
     while (angle < -Math.PI) angle += 2 * Math.PI;
     return angle;
+  }
+  
+  /**
+   * Debug method to print tip status for diagnosis
+   */
+  private debugTips() {
+    console.log(`TIPS STATS ------`);
+    console.log(`Total tips: ${this.tips.length}`);
+    
+    // Count by growth type
+    const typeCount = {
+      main: 0,
+      secondary: 0,
+      aerial: 0,
+      rhizomorph: 0,
+      reproductive: 0
+    };
+    
+    // Track resource stats
+    let totalResource = 0;
+    let minResource = Number.MAX_VALUE;
+    let maxResource = 0;
+    
+    // Analyze tips
+    for (const tip of this.tips) {
+      typeCount[tip.growthType]++;
+      totalResource += tip.resource;
+      minResource = Math.min(minResource, tip.resource);
+      maxResource = Math.max(maxResource, tip.resource);
+    }
+    
+    console.log(`Growth types: `, typeCount);
+    console.log(`Resource - Total: ${totalResource}, Min: ${minResource}, Max: ${maxResource}, Avg: ${totalResource / this.tips.length}`);
+    console.log(`-----------------`);
   }
 
   /**
@@ -1092,6 +1522,23 @@ export class GrowthManager {
     customThickness?: number,
     maturity: number = 0,
   ) {
+    // Verify we're drawing a real segment
+    const distance = Math.hypot(newX - oldX, newY - oldY);
+    if (distance < 0.1) {
+      // Skip drawing segments that are too small
+      return;
+    }
+    
+    // Force much thicker lines in early simulation to make growth visible
+    let forcedThickness = 0;
+    if (this.simulationTime < 30) {
+      forcedThickness = 6.0;
+    }
+    
+    // Debug early segments
+    if (this.simulationTime < 5) {
+      console.log(`Drawing segment from (${oldX.toFixed(1)}, ${oldY.toFixed(1)}) to (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+    }
     // Calculate lightness based on depth
     let calculatedLightness =
       config.BASE_LIGHTNESS + depth * config.LIGHTNESS_STEP;
@@ -1134,60 +1581,74 @@ export class GrowthManager {
     let saturation: number;
     let lightness: number;
     let hue: number;
+    
+    // Apply forced thickness for early growth to make it visible
+    if (forcedThickness > 0) {
+      lineWidth = forcedThickness;
+    }
 
-    // Determine line style based on growth type
-    switch (type) {
-      case "main":
-        lineWidth = customThickness ?? config.MAIN_LINE_WIDTH;
-        alpha = config.MAIN_ALPHA;
-        hue = config.BASE_HUE; 
-        saturation = 5 + nutrientFactor * 15; // More saturation in nutrient-rich areas
-        lightness = calculatedLightness;
-        break;
-        
-      case "secondary":
-        lineWidth = customThickness ?? config.SECONDARY_LINE_WIDTH;
-        alpha = config.SECONDARY_ALPHA;
-        hue = config.BASE_HUE + (moistureFactor * 20); // Slight blue shift in moist areas
-        saturation = nutrientFactor * 10;
-        lightness = calculatedLightness + 5; // Slightly lighter
-        break;
-        
-      case "rhizomorph":
-        // Rhizomorphs are thicker, darker, more defined transport structures
-        // Significantly enhanced visibility for rhizomorphs
-        lineWidth = customThickness ?? (config.MAIN_LINE_WIDTH * 2.0); // Much thicker
-        alpha = config.MAIN_ALPHA + 0.15; // More opaque
-        hue = config.BASE_HUE - 8; // Warmer color
-        saturation = 15 + nutrientFactor * 15; // More saturated
-        lightness = calculatedLightness - 15; // Much darker for better contrast
-        break;
-        
-      case "aerial":
-        // Aerial hyphae are thinner, lighter, more translucent
-        lineWidth = customThickness ?? (config.SECONDARY_LINE_WIDTH * 0.8);
-        alpha = config.SECONDARY_ALPHA - 0.1;
-        hue = config.BASE_HUE + 15; // Slightly cooler
-        saturation = 5;
-        lightness = calculatedLightness + 10; // Lighter
-        break;
-        
-      case "reproductive":
-        // Reproductive structures are distinctive
-        lineWidth = customThickness ?? (config.MAIN_LINE_WIDTH * 0.7);
-        alpha = config.MAIN_ALPHA;
-        hue = 45; // Yellowish-brown
-        saturation = 30;
-        lightness = calculatedLightness - 5;
-        break;
-        
-      default:
-        // Fall back to reasonable defaults
-        lineWidth = customThickness ?? config.SECONDARY_LINE_WIDTH;
-        alpha = config.SECONDARY_ALPHA;
-        hue = config.BASE_HUE;
-        saturation = nutrientFactor * 5;
-        lightness = calculatedLightness;
+    // Only determine line style if not already forced
+    if (!forcedThickness) {
+      // Determine line style based on growth type
+      switch (type) {
+        case "main":
+          lineWidth = customThickness ?? config.MAIN_LINE_WIDTH;
+          alpha = config.MAIN_ALPHA;
+          hue = config.BASE_HUE; 
+          saturation = 5 + nutrientFactor * 15; // More saturation in nutrient-rich areas
+          lightness = calculatedLightness;
+          break;
+          
+        case "secondary":
+          lineWidth = customThickness ?? config.SECONDARY_LINE_WIDTH;
+          alpha = config.SECONDARY_ALPHA;
+          hue = config.BASE_HUE + (moistureFactor * 20); // Slight blue shift in moist areas
+          saturation = nutrientFactor * 10;
+          lightness = calculatedLightness + 5; // Slightly lighter
+          break;
+          
+        case "rhizomorph":
+          // Rhizomorphs are thicker, darker, more defined transport structures
+          // Significantly enhanced visibility for rhizomorphs
+          lineWidth = customThickness ?? (config.MAIN_LINE_WIDTH * 2.0); // Much thicker
+          alpha = config.MAIN_ALPHA + 0.15; // More opaque
+          hue = config.BASE_HUE - 8; // Warmer color
+          saturation = 15 + nutrientFactor * 15; // More saturated
+          lightness = calculatedLightness - 15; // Much darker for better contrast
+          break;
+          
+        case "aerial":
+          // Aerial hyphae are thinner, lighter, more translucent
+          lineWidth = customThickness ?? (config.SECONDARY_LINE_WIDTH * 0.8);
+          alpha = config.SECONDARY_ALPHA - 0.1;
+          hue = config.BASE_HUE + 15; // Slightly cooler
+          saturation = 5;
+          lightness = calculatedLightness + 10; // Lighter
+          break;
+          
+        case "reproductive":
+          // Reproductive structures are distinctive
+          lineWidth = customThickness ?? (config.MAIN_LINE_WIDTH * 0.7);
+          alpha = config.MAIN_ALPHA;
+          hue = 45; // Yellowish-brown
+          saturation = 30;
+          lightness = calculatedLightness - 5;
+          break;
+          
+        default:
+          // Fall back to reasonable defaults
+          lineWidth = customThickness ?? config.SECONDARY_LINE_WIDTH;
+          alpha = config.SECONDARY_ALPHA;
+          hue = config.BASE_HUE;
+          saturation = nutrientFactor * 5;
+          lightness = calculatedLightness;
+      }
+      
+      // Override for early simulation - make alpha very high
+      if (this.simulationTime < 30) {
+        alpha = 1.0; // Full opacity 
+        saturation = Math.min(100, saturation + 20); // More saturated colors
+      }
     }
     
     // Modify appearance based on maturity

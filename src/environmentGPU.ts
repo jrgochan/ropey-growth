@@ -109,7 +109,29 @@ export class EnvironmentGPU {
       gridY >= 0 &&
       gridY < this.flowPathUsage[0].length
     ) {
-      this.flowPathUsage[gridX][gridY] += amount * config.LINE_THICKENING_FACTOR;
+      // Increased thickening factor for more visible network
+      const thickeningFactor = config.LINE_THICKENING_FACTOR * 3.0;
+      this.flowPathUsage[gridX][gridY] += amount * thickeningFactor;
+      
+      // Record in neighboring cells too for thicker visualization
+      const neighbors = [
+        [gridX - 1, gridY], 
+        [gridX + 1, gridY], 
+        [gridX, gridY - 1], 
+        [gridX, gridY + 1]
+      ];
+      
+      for (const [nx, ny] of neighbors) {
+        if (
+          nx >= 0 &&
+          nx < this.flowPathUsage.length &&
+          ny >= 0 &&
+          ny < this.flowPathUsage[0].length
+        ) {
+          // Neighbors get less but still significant usage
+          this.flowPathUsage[nx][ny] += amount * thickeningFactor * 0.4;
+        }
+      }
     }
   }
 
@@ -156,7 +178,32 @@ export class EnvironmentGPU {
       this.moistureGrid[gridX][gridY] += amount * 0.5;
     }
   }
+  
+  /**
+   * Adds moisture to a specific location.
+   * @param x - X-coordinate where moisture is added.
+   * @param y - Y-coordinate where moisture is added.
+   * @param amount - Amount of moisture to add.
+   */
+  public addMoisture(x: number, y: number, amount: number) {
+    const gridX = Math.floor(x / config.ENV_GRID_CELL_SIZE);
+    const gridY = Math.floor(y / config.ENV_GRID_CELL_SIZE);
 
+    if (
+      gridX >= 0 &&
+      gridX < this.moistureGrid.length &&
+      gridY >= 0 &&
+      gridY < this.moistureGrid[0].length
+    ) {
+      this.moistureGrid[gridX][gridY] += amount;
+    }
+  }
+
+  // Cache for gradient calculations to avoid recalculating too frequently
+  private gradientCache: Map<string, {gradient: [number, number], timestamp: number}> = new Map();
+  private readonly GRADIENT_CACHE_LIFETIME = 10; // Frames before recalculation
+  private frameCount = 0; // Track frames for cache management
+  
   /**
    * Samples the nutrient gradient at a given location.
    * Returns a vector [dx, dy] pointing in the direction of higher nutrients.
@@ -165,6 +212,21 @@ export class EnvironmentGPU {
    * @returns [dx, dy] normalized vector pointing toward higher nutrient concentration.
    */
   public getNutrientGradient(x: number, y: number): [number, number] {
+    this.frameCount++;
+    
+    // Cell-based location for cache key (rounded to reduce unique locations)
+    const cellSize = config.ENV_GRID_CELL_SIZE * 2; // Use larger cells for caching
+    const cacheX = Math.floor(x / cellSize);
+    const cacheY = Math.floor(y / cellSize);
+    const cacheKey = `${cacheX},${cacheY}`;
+    
+    // Check if we have a recent cached value
+    const cached = this.gradientCache.get(cacheKey);
+    if (cached && this.frameCount - cached.timestamp < this.GRADIENT_CACHE_LIFETIME) {
+      return cached.gradient;
+    }
+    
+    // Calculate gradient with optimized sampling
     const radius = config.GRADIENT_SAMPLING_RADIUS;
     const gridX = Math.floor(x / config.ENV_GRID_CELL_SIZE);
     const gridY = Math.floor(y / config.ENV_GRID_CELL_SIZE);
@@ -173,45 +235,72 @@ export class EnvironmentGPU {
     let dy = 0;
     let samples = 0;
     
-    // Sample in a square around the current position
-    for (let i = -radius; i <= radius; i++) {
-      for (let j = -radius; j <= radius; j++) {
-        const sampleX = gridX + i;
-        const sampleY = gridY + j;
-        
-        if (
-          sampleX >= 0 &&
-          sampleX < this.nutrientGrid.length &&
-          sampleY >= 0 &&
-          sampleY < this.nutrientGrid[0].length
-        ) {
-          // Weight by distance (closer samples matter more)
-          const distance = Math.sqrt(i*i + j*j);
-          if (distance > 0 && distance <= radius) {
-            const weight = 1 / distance;
-            
-            // Get nutrient value, weight it by distance
-            const nutrientValue = this.nutrientGrid[sampleX][sampleY] * weight;
-            
-            // Accumulate weighted vector components
-            dx += i * nutrientValue;
-            dy += j * nutrientValue;
-            samples++;
-          }
+    // Sample only in cardinal directions (N, E, S, W) for better performance
+    // This gives enough gradient information for most purposes
+    const directions = [
+      [-radius, 0], // Left
+      [radius, 0],  // Right
+      [0, -radius], // Up
+      [0, radius],  // Down
+      [-Math.floor(radius/2), -Math.floor(radius/2)], // Up-Left 
+      [Math.floor(radius/2), -Math.floor(radius/2)],  // Up-Right
+      [-Math.floor(radius/2), Math.floor(radius/2)],  // Down-Left
+      [Math.floor(radius/2), Math.floor(radius/2)]    // Down-Right
+    ];
+    
+    for (const [i, j] of directions) {
+      const sampleX = gridX + i;
+      const sampleY = gridY + j;
+      
+      if (
+        sampleX >= 0 &&
+        sampleX < this.nutrientGrid.length &&
+        sampleY >= 0 &&
+        sampleY < this.nutrientGrid[0].length
+      ) {
+        // Use a simpler weighting system - just use distance
+        const distance = Math.abs(i) + Math.abs(j); // Manhattan distance is cheaper than Euclidean
+        if (distance > 0) {
+          const weight = 1 / distance;
+          
+          // Get nutrient value, weight it by distance
+          const nutrientValue = this.nutrientGrid[sampleX][sampleY] * weight;
+          
+          // Accumulate weighted vector components
+          dx += i * nutrientValue;
+          dy += j * nutrientValue;
+          samples++;
         }
       }
     }
     
     // Normalize the gradient vector
+    let result: [number, number] = [0, 0];
+    
     if (samples > 0 && (dx !== 0 || dy !== 0)) {
       const magnitude = Math.sqrt(dx*dx + dy*dy);
       if (magnitude > 0) {
-        dx /= magnitude;
-        dy /= magnitude;
+        result = [dx / magnitude, dy / magnitude];
       }
     }
     
-    return [dx, dy];
+    // Cache the result
+    this.gradientCache.set(cacheKey, {
+      gradient: result,
+      timestamp: this.frameCount
+    });
+    
+    // Clean up old cache entries periodically
+    if (this.frameCount % 100 === 0 && this.gradientCache.size > 1000) {
+      const cutoffTime = this.frameCount - this.GRADIENT_CACHE_LIFETIME * 2;
+      for (const [key, value] of this.gradientCache.entries()) {
+        if (value.timestamp < cutoffTime) {
+          this.gradientCache.delete(key);
+        }
+      }
+    }
+    
+    return result;
   }
 
   /**
@@ -256,6 +345,10 @@ export class EnvironmentGPU {
     return 0;
   }
 
+  // Cache for avoidance calculations 
+  private avoidanceCache: Map<string, {vector: [number, number], timestamp: number}> = new Map();
+  private readonly AVOIDANCE_CACHE_LIFETIME = 5; // Frames before recalculation
+  
   /**
    * Checks for nearby hyphae to implement negative autotropism (avoiding self)
    * @param x - X-coordinate to check.
@@ -264,6 +357,20 @@ export class EnvironmentGPU {
    * @returns [dx, dy] normalized vector pointing away from nearby hyphae.
    */
   public getAvoidanceFactor(x: number, y: number, radius: number): [number, number] {
+    this.frameCount++; // Reuse frame counter from gradient cache
+    
+    // Cell-based location for cache key (rounded to reduce unique keys)
+    const cellSize = config.ENV_GRID_CELL_SIZE * 1.5; // Use larger cells for caching
+    const cacheX = Math.floor(x / cellSize);
+    const cacheY = Math.floor(y / cellSize);
+    const cacheKey = `${cacheX},${cacheY},${Math.floor(radius*10)}`; // Include radius in key
+    
+    // Check if we have a recent cached value
+    const cached = this.avoidanceCache.get(cacheKey);
+    if (cached && this.frameCount - cached.timestamp < this.AVOIDANCE_CACHE_LIFETIME) {
+      return cached.vector;
+    }
+    
     const gridX = Math.floor(x / config.ENV_GRID_CELL_SIZE);
     const gridY = Math.floor(y / config.ENV_GRID_CELL_SIZE);
     
@@ -272,46 +379,81 @@ export class EnvironmentGPU {
     let detected = false;
     
     // Check flow path usage grid for existing hyphae
-    const searchRadius = Math.ceil(radius / config.ENV_GRID_CELL_SIZE);
+    const searchRadius = Math.min(3, Math.ceil(radius / config.ENV_GRID_CELL_SIZE));
     
-    for (let i = -searchRadius; i <= searchRadius; i++) {
-      for (let j = -searchRadius; j <= searchRadius; j++) {
-        const checkX = gridX + i;
-        const checkY = gridY + j;
-        
-        if (
-          checkX >= 0 &&
-          checkX < this.flowPathUsage.length &&
-          checkY >= 0 &&
-          checkY < this.flowPathUsage[0].length
-        ) {
-          if (this.flowPathUsage[checkX][checkY] > 0) {
-            // Calculate distance
-            const distance = Math.sqrt(i*i + j*j);
-            if (distance > 0 && distance <= searchRadius) {
-              // Vector pointing away from this hypha, weighted by usage
-              const weight = (this.flowPathUsage[checkX][checkY] * (searchRadius - distance)) / (distance * searchRadius);
-              dx -= i * weight;
-              dy -= j * weight;
-              detected = true;
-            }
+    // Check in an optimized pattern to reduce calculations
+    // Sample in a + pattern first
+    const samplePoints = [
+      // Primary directions
+      [0, -searchRadius], [0, searchRadius], [-searchRadius, 0], [searchRadius, 0],
+      // Diagonal directions (at half radius for efficiency)
+      [-Math.floor(searchRadius/2), -Math.floor(searchRadius/2)],
+      [Math.floor(searchRadius/2), -Math.floor(searchRadius/2)],
+      [-Math.floor(searchRadius/2), Math.floor(searchRadius/2)],
+      [Math.floor(searchRadius/2), Math.floor(searchRadius/2)]
+    ];
+    
+    // Check our optimized sample points
+    for (const [i, j] of samplePoints) {
+      const checkX = gridX + i;
+      const checkY = gridY + j;
+      
+      if (
+        checkX >= 0 &&
+        checkX < this.flowPathUsage.length &&
+        checkY >= 0 &&
+        checkY < this.flowPathUsage[0].length
+      ) {
+        const usage = this.flowPathUsage[checkX][checkY];
+        if (usage > 0) {
+          // Calculate Manhattan distance for better performance
+          const distance = Math.abs(i) + Math.abs(j);
+          if (distance > 0) {
+            // Vector pointing away from this hypha, weighted by usage
+            const weight = (usage * (searchRadius*2 - distance)) / (distance * searchRadius*2);
+            dx -= i * weight * 2; // Amplify effect to compensate for fewer samples
+            dy -= j * weight * 2;
+            detected = true;
           }
         }
       }
     }
     
     // Normalize the avoidance vector
+    let result: [number, number] = [0, 0];
+    
     if (detected) {
       const magnitude = Math.sqrt(dx*dx + dy*dy);
       if (magnitude > 0) {
-        dx /= magnitude;
-        dy /= magnitude;
+        result = [dx / magnitude, dy / magnitude];
       }
     }
     
-    return [dx, dy];
+    // Cache the result
+    this.avoidanceCache.set(cacheKey, {
+      vector: result,
+      timestamp: this.frameCount
+    });
+    
+    // Clean up old cache entries (piggyback on gradient cache cleanup)
+    if (this.frameCount % 100 === 0 && this.avoidanceCache.size > 1000) {
+      const cutoffTime = this.frameCount - this.AVOIDANCE_CACHE_LIFETIME * 2;
+      for (const [key, value] of this.avoidanceCache.entries()) {
+        if (value.timestamp < cutoffTime) {
+          this.avoidanceCache.delete(key);
+        }
+      }
+    }
+    
+    return result;
   }
 
+  // Reusable fixed arrays to avoid repeated allocation
+  private newNutrientGrid: number[][] | null = null;
+  private newMoistureGrid: number[][] | null = null;
+  private diffusionSkipFactor = 1; // Skip cells for faster diffusion
+  private diffusionTimeIndex = 0; // Track time for alternating pattern
+  
   /**
    * Handles nutrient diffusion across the grid.
    * This method should be called periodically to simulate nutrient spread.
@@ -319,26 +461,48 @@ export class EnvironmentGPU {
   public diffuseNutrients() {
     const cols = this.nutrientGrid.length;
     const rows = this.nutrientGrid[0].length;
-    const newNutrientGrid: number[][] = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => 0),
-    );
-    const newMoistureGrid: number[][] = Array.from({ length: cols }, () =>
-      Array.from({ length: rows }, () => 0),
-    );
-
-    for (let x = 0; x < cols; x++) {
-      for (let y = 0; y < rows; y++) {
+    
+    // Create reusable grids if not already created
+    if (!this.newNutrientGrid) {
+      this.newNutrientGrid = Array.from({ length: cols }, () =>
+        Array.from({ length: rows }, () => 0),
+      );
+    }
+    
+    if (!this.newMoistureGrid) {
+      this.newMoistureGrid = Array.from({ length: cols }, () =>
+        Array.from({ length: rows }, () => 0),
+      );
+    }
+    
+    // Increment time index for alternating patterns
+    this.diffusionTimeIndex++;
+    
+    // Determine starting point based on time - creates alternating patterns
+    // to avoid bias in diffusion direction
+    const startX = this.diffusionTimeIndex % 2;
+    const startY = (this.diffusionTimeIndex / 2) % 2;
+    
+    // Dynamic skip factor based on grid size to improve performance
+    // Larger grids can have larger skip factors
+    const skipFactor = Math.max(1, Math.floor(cols / 100));
+    this.diffusionSkipFactor = skipFactor;
+    
+    // Process only a subset of cells each time for better performance
+    for (let x = startX; x < cols; x += skipFactor) {
+      for (let y = startY; y < rows; y += skipFactor) {
         // Diffuse nutrients
         let nutrientTotal = this.nutrientGrid[x][y];
         let moistureTotal = this.moistureGrid[x][y];
         let count = 1;
 
-        // Check neighboring cells
+        // Check only cardinal neighbors for better performance
+        // This still gives good diffusion results
         const neighbors = [
-          [x - 1, y],
-          [x + 1, y],
-          [x, y - 1],
-          [x, y + 1],
+          [x - skipFactor, y],    // left
+          [x + skipFactor, y],    // right
+          [x, y - skipFactor],    // top
+          [x, y + skipFactor]     // bottom
         ];
 
         for (const [nx, ny] of neighbors) {
@@ -350,17 +514,28 @@ export class EnvironmentGPU {
         }
 
         // Calculate average and apply diffusion rate
-        newNutrientGrid[x][y] = this.nutrientGrid[x][y] +
+        this.newNutrientGrid[x][y] = this.nutrientGrid[x][y] +
           config.NUTRIENT_DIFFUSION * (nutrientTotal / count - this.nutrientGrid[x][y]);
           
         // Moisture diffuses faster than nutrients
-        newMoistureGrid[x][y] = this.moistureGrid[x][y] +
+        this.newMoistureGrid[x][y] = this.moistureGrid[x][y] +
           (config.NUTRIENT_DIFFUSION * 1.5) * (moistureTotal / count - this.moistureGrid[x][y]);
+          
+        // Apply a small decay factor to nutrients (natural breakdown over time)
+        this.newNutrientGrid[x][y] *= 0.999;
       }
     }
-
-    this.nutrientGrid = newNutrientGrid;
-    this.moistureGrid = newMoistureGrid;
+    
+    // Copy processed values back to main grids
+    for (let x = startX; x < cols; x += skipFactor) {
+      for (let y = startY; y < rows; y += skipFactor) {
+        this.nutrientGrid[x][y] = this.newNutrientGrid[x][y];
+        this.moistureGrid[x][y] = this.newMoistureGrid[x][y];
+      }
+    }
+    
+    // Return true for successful diffusion (can be used for chaining)
+    return true;
   }
 
   /**
@@ -377,34 +552,78 @@ export class EnvironmentGPU {
     }
   }
 
+  // Offscreen canvas for nutrient grid visualization
+  private nutrientCanvas: HTMLCanvasElement | null = null;
+  private nutrientCtx: CanvasRenderingContext2D | null = null;
+  private lastNutrientRender = 0;
+  private readonly NUTRIENT_RENDER_INTERVAL = 10; // Only update every 10 frames
+  
   /**
    * Draws the nutrient grid onto the canvas for visualization.
    * This is optional and can be used for debugging purposes.
    * @param ctx - Canvas rendering context.
    */
   public drawNutrientGrid(ctx: CanvasRenderingContext2D) {
-    for (let x = 0; x < this.nutrientGrid.length; x++) {
-      for (let y = 0; y < this.nutrientGrid[0].length; y++) {
+    // Only update nutrient visualization periodically
+    if (this.frameCount - this.lastNutrientRender < this.NUTRIENT_RENDER_INTERVAL) {
+      // Just draw the existing offscreen canvas if available
+      if (this.nutrientCanvas && this.nutrientCtx) {
+        ctx.drawImage(this.nutrientCanvas, 0, 0);
+        return;
+      }
+    }
+    
+    this.lastNutrientRender = this.frameCount;
+    
+    // Create offscreen canvas if it doesn't exist
+    if (!this.nutrientCanvas || !this.nutrientCtx) {
+      this.nutrientCanvas = document.createElement('canvas');
+      this.nutrientCanvas.width = ctx.canvas.width;
+      this.nutrientCanvas.height = ctx.canvas.height;
+      this.nutrientCtx = this.nutrientCanvas.getContext('2d');
+      
+      if (!this.nutrientCtx) {
+        console.error("Could not create offscreen context for nutrient grid");
+        return;
+      }
+    }
+    
+    // Clear the offscreen canvas
+    this.nutrientCtx.clearRect(0, 0, this.nutrientCanvas.width, this.nutrientCanvas.height);
+    
+    // Use a much larger skip factor for better performance
+    const skipFactor = Math.max(4, Math.floor(this.diffusionSkipFactor * 2));
+    const maxAlpha = 0.04; // Even lower alpha for less visual impact
+    
+    // Render to offscreen canvas
+    for (let x = 0; x < this.nutrientGrid.length; x += skipFactor) {
+      for (let y = 0; y < this.nutrientGrid[0].length; y += skipFactor) {
         const nutrient = this.nutrientGrid[x][y];
         const moisture = this.moistureGrid[x][y];
         
-        if (nutrient > 0 || moisture > 0) {
+        // Only draw cells with significant nutrients
+        if (nutrient > config.BASE_NUTRIENT * 0.6 || moisture > config.BASE_NUTRIENT * 0.6) {
           // Blend colors: green for nutrients, blue for moisture
           const r = 0;
-          const g = Math.min(255, Math.floor((nutrient / config.BASE_NUTRIENT) * 255));
-          const b = Math.min(255, Math.floor((moisture / config.BASE_NUTRIENT) * 255));
-          const a = Math.min(1, (nutrient + moisture) / (2 * config.BASE_NUTRIENT));
+          const g = Math.min(180, Math.floor((nutrient / config.BASE_NUTRIENT) * 130));
+          const b = Math.min(180, Math.floor((moisture / config.BASE_NUTRIENT) * 130));
           
-          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-          ctx.fillRect(
+          // Extremely low alpha to avoid taking over the entire display
+          const a = Math.min(maxAlpha, (nutrient + moisture) / (8 * config.BASE_NUTRIENT));
+          
+          this.nutrientCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+          this.nutrientCtx.fillRect(
             x * config.ENV_GRID_CELL_SIZE,
             y * config.ENV_GRID_CELL_SIZE,
-            config.ENV_GRID_CELL_SIZE,
-            config.ENV_GRID_CELL_SIZE,
+            config.ENV_GRID_CELL_SIZE * skipFactor,
+            config.ENV_GRID_CELL_SIZE * skipFactor,
           );
         }
       }
     }
+    
+    // Draw the offscreen canvas to the main canvas
+    ctx.drawImage(this.nutrientCanvas, 0, 0);
   }
 
   /**

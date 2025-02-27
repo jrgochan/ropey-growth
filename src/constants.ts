@@ -79,16 +79,16 @@ export const config = {
   // Canvas & Growth Parameters
   // -----------------------------
   GROWTH_RADIUS_FACTOR: 0.8, // Fraction of min(width, height) for growth boundary
-  MAIN_BRANCH_COUNT: 20, // Number of main branches (increased for denser growth)
+  MAIN_BRANCH_COUNT: 12, // Number of main branches - ADJUSTED for better coverage
 
   // -----------------------------
   // Growth Mechanics
   // -----------------------------
   STEP_SIZE: 3.0, // Base step size for each iteration
-  GROWTH_SPEED_MULTIPLIER: 4.0, // Multiplier to control overall growth speed
+  GROWTH_SPEED_MULTIPLIER: 1.0, // Multiplier to control overall growth speed - RESTORED to ensure proper animation
   BASE_LIFE: 1200, // Base life for main tips (significantly increased for much longer strands)
   BRANCH_DECAY: 0.92, // Fraction of parent's life for branches (increased to make branches live longer)
-  BRANCH_CHANCE: 0.45, // Probability of branching per step (decreased for more defined strands)
+  BRANCH_CHANCE: 0.65, // Probability of branching per step - INCREASED for more visible growth
   MAX_BRANCH_DEPTH: 100, // Maximum depth for nested branches
   ANGLE_DRIFT_STRENGTH: 0.15, // Strength of angle drift influenced by Perlin noise (increased for more realistic meandering)
   WIGGLE_STRENGTH: 0.2, // Strength of wiggle for additional randomness
@@ -124,7 +124,7 @@ export const config = {
   // -----------------------------
   // Growth Simulation Parameters
   // -----------------------------
-  TIME_LAPSE_FACTOR: 10, // Number of simulation steps per animation frame
+  TIME_LAPSE_FACTOR: 5, // Number of simulation steps per animation frame - INCREASED to show growth
   SECONDARY_FAN_COUNT: 1, // Number of secondary branches per main tip
   WIDER_SECONDARY_ANGLE: Math.PI / 6, // Additional angle spread for secondary branches
 
@@ -140,10 +140,10 @@ export const config = {
   // -----------------------------
   // Line Rendering Parameters
   // -----------------------------
-  MAIN_LINE_WIDTH: 3.0, // Width of main hyphal lines
-  SECONDARY_LINE_WIDTH: 2.0, // Width of secondary hyphal lines
+  MAIN_LINE_WIDTH: 5.0, // Width of main hyphal lines - INCREASED for better visibility
+  SECONDARY_LINE_WIDTH: 3.0, // Width of secondary hyphal lines - INCREASED for better visibility
   MAIN_ALPHA: 1, // Opacity of main hyphal lines
-  SECONDARY_ALPHA: 0.9, // Opacity of secondary hyphal lines
+  SECONDARY_ALPHA: 0.95, // Opacity of secondary hyphal lines - INCREASED for better visibility
 
   // -----------------------------
   // Color Parameters

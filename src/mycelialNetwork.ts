@@ -103,19 +103,22 @@ export class MycelialNetwork {
     for (const edge of this.edges) {
       // Increase maturity based on recent flow activity
       // Enhanced maturation rate for higher flow paths to create more distinct transport routes
-      const flowMultiplier = Math.min(3.0, 1.0 + (edge.lastFlowAmount / 50));
-      const maturityIncrement = edge.lastFlowAmount * config.HYPHAL_MATURATION_RATE * flowMultiplier;
+      // Increased base maturation rate to create more visible network
+      const flowMultiplier = Math.min(5.0, 1.0 + (edge.lastFlowAmount / 20));
+      const maturityIncrement = (edge.lastFlowAmount + 0.01) * config.HYPHAL_MATURATION_RATE * flowMultiplier;
       
       // Apply non-linear maturation for more pronounced main transport routes
       if (edge.maturity > 0.5) {
         // Mature edges mature faster (positive feedback loop)
-        edge.maturity = Math.min(1.0, edge.maturity + maturityIncrement * 1.5);
+        edge.maturity = Math.min(1.0, edge.maturity + maturityIncrement * 2.0);
       } else {
-        edge.maturity = Math.min(1.0, edge.maturity + maturityIncrement);
+        // Added minimum maturation rate so all network edges mature over time
+        edge.maturity = Math.min(1.0, edge.maturity + Math.max(maturityIncrement, 0.001));
       }
       
       // Update transport efficiency based on maturity - exponential improvement
-      edge.transportEfficiency = 1.0 + (Math.pow(edge.maturity, 1.5) * (config.TRANSPORT_EFFICIENCY_FACTOR - 1.0));
+      // Increased efficiency factor for more active network
+      edge.transportEfficiency = 1.0 + (Math.pow(edge.maturity, 1.5) * (config.TRANSPORT_EFFICIENCY_FACTOR * 1.2 - 1.0));
     }
   }
 
@@ -151,15 +154,16 @@ export class MycelialNetwork {
         const connectedNode = this.nodes.get(connId);
         if (connectedNode) {
           // Only flow resources if there's a meaningful difference
-          // Lowered threshold to increase flow activity
-          if (node.resource > connectedNode.resource + 5) {
+          // Further reduced threshold to increase flow activity
+          if (node.resource > connectedNode.resource + 2) {
             // Find the edge connecting these nodes
             const edge = this.findEdge(id, connId);
             if (edge) {
               // Calculate flow based on resource difference and edge efficiency
               const baseFlow = (node.resource - connectedNode.resource) * config.RESOURCE_FLOW_RATE;
               // Apply maturity bonus to transport efficiency to encourage main transport routes
-              const maturityBonus = 1 + (edge.maturity * 0.5);
+              // Increased maturity bonus for more visible network formation
+              const maturityBonus = 1 + (edge.maturity * 1.5);
               const adjustedFlow = baseFlow * edge.transportEfficiency * maturityBonus;
               
               // Record the flow for this edge
@@ -177,7 +181,18 @@ export class MycelialNetwork {
                   // Calculate midpoint of this edge for recording path usage
                   const midX = (fromNode.x + toNode.x) / 2;
                   const midY = (fromNode.y + toNode.y) / 2;
-                  this.envGPU.recordPathUsage(midX, midY, adjustedFlow);
+                  
+                  // Increase path usage recording for better visualization
+                  this.envGPU.recordPathUsage(midX, midY, adjustedFlow * 2);
+                  
+                  // Record usage along the path, not just at midpoint
+                  const numPoints = 3; // Record multiple points along the path
+                  for (let i = 1; i < numPoints; i++) {
+                    const t = i / (numPoints + 1);
+                    const pathX = fromNode.x * (1-t) + toNode.x * t;
+                    const pathY = fromNode.y * (1-t) + toNode.y * t;
+                    this.envGPU.recordPathUsage(pathX, pathY, adjustedFlow);
+                  }
                 }
               }
             }
@@ -195,6 +210,14 @@ export class MycelialNetwork {
         if (node.resource < 0) node.resource = 0;
         // Set a maximum resource limit to prevent overflow
         if (node.resource > 3000) node.resource = 3000;
+      }
+    });
+    
+    // Add a small minimum resource to all nodes to prevent network die-off
+    // This represents the base maintenance level in the real fungal network
+    this.nodes.forEach((node) => {
+      if (node.resource < 10) {
+        node.resource = Math.max(node.resource, 10);
       }
     });
     
