@@ -1,0 +1,125 @@
+/**
+ * Test configurations for mycelial growth simulation tests
+ * Provides standardized test configurations to ensure reproducible tests
+ */
+
+import { Config } from '../../src/constants.js';
+
+// Minimal configuration for fast testing
+export const minimalConfig: Config = {
+  GROWTH_RADIUS_FACTOR: 0.4,
+  MAIN_BRANCH_COUNT: 4,
+  STEP_SIZE: 1.0,
+  GROWTH_SPEED_MULTIPLIER: 1.0,
+  BASE_LIFE: 100,
+  BRANCH_DECAY: 0.9,
+  BRANCH_CHANCE: 0.3,
+  MAX_BRANCH_DEPTH: 3,
+  ANGLE_DRIFT_STRENGTH: 0.1,
+  WIGGLE_STRENGTH: 0.1,
+  PERLIN_SCALE: 0.05,
+  ENV_GRID_CELL_SIZE: 5,
+  BASE_NUTRIENT: 50,
+  NUTRIENT_DIFFUSION: 0.1,
+  NUTRIENT_CONSUMPTION_RATE: 0.5,
+  NUTRIENT_POCKET_RADIUS: 2,
+  NUTRIENT_POCKET_AMOUNT: 50,
+  NUTRIENT_POCKET_DECAY_RATE: 0.5,
+  REPLENISHMENT_INTERVAL: 60000,
+  REPLENISHMENT_AMOUNT: 5,
+  INITIAL_RESOURCE_PER_TIP: 100,
+  RESOURCE_FLOW_RATE: 0.5,
+  TIME_LAPSE_FACTOR: 1,
+  SECONDARY_FAN_COUNT: 1,
+  WIDER_SECONDARY_ANGLE: Math.PI / 6,
+  BACKGROUND_ALPHA: 0.05,
+  FADE_START_FACTOR: 0.8,
+  FADE_END_FACTOR: 1.0,
+  SHADOW_BLUR: 0,
+  SHADOW_COLOR: "rgba(0, 0, 0, 0)",
+  MAIN_LINE_WIDTH: 1.0,
+  SECONDARY_LINE_WIDTH: 0.5,
+  MAIN_ALPHA: 1.0,
+  SECONDARY_ALPHA: 0.7,
+  BASE_HUE: 40,
+  BASE_LIGHTNESS: 60,
+  LIGHTNESS_STEP: 5,
+  ANASTOMOSIS_RADIUS: 1.0,
+  CHEMOTROPISM_STRENGTH: 0.5,
+  NEGATIVE_AUTOTROPISM_STRENGTH: 0.2,
+  LINE_THICKENING_FACTOR: 0.01,
+  GRADIENT_SAMPLING_RADIUS: 3,
+  HYPHAL_MATURATION_RATE: 0.05,
+  TRANSPORT_EFFICIENCY_FACTOR: 1.2,
+  MOISTURE_FACTOR: 0.5,
+  ENZYME_SECRETION_RADIUS: 2,
+  ENZYME_DIFFUSION_RATE: 0.1,
+  ENZYME_DIGESTION_RATE: 0.05,
+  CARBON_NITROGEN_RATIO: 25,
+  HYPHAL_RESPIRATION_RATE: 0.01,
+  SPORE_FORMATION_THRESHOLD: 500,
+  APICAL_DOMINANCE_FACTOR: 0.5,
+  SUBSTRATE_PENETRATION_RESISTANCE: 0.2,
+  SEASONAL_GROWTH_PATTERN: false,
+  CIRCADIAN_RHYTHM_AMPLITUDE: 0.0,
+  GEOTROPISM_STRENGTH: 0.1,
+  PH_TOLERANCE_RANGE: [4.5, 7.0],
+  TEMPERATURE_OPTIMUM: 25,
+  TEMPERATURE_RANGE: [5, 35],
+  COMPETITOR_FUNGAL_PRESENCE: false,
+  BACTERIAL_INTERACTION_FACTOR: 0.0
+};
+
+// Deterministic configuration with fixed seed for reproducible tests
+export const deterministicConfig: Config = {
+  ...minimalConfig,
+  // Override with deterministic values
+  MAIN_BRANCH_COUNT: 8,
+  BRANCH_CHANCE: 0.5
+};
+
+// Performance testing configuration with high complexity
+export const performanceConfig: Config = {
+  ...minimalConfig,
+  MAIN_BRANCH_COUNT: 20,
+  STEP_SIZE: 2.0,
+  GROWTH_SPEED_MULTIPLIER: 3.0,
+  BASE_LIFE: 500,
+  BRANCH_CHANCE: 0.7,
+  MAX_BRANCH_DEPTH: 10,
+  TIME_LAPSE_FACTOR: 5,
+  NUTRIENT_POCKET_AMOUNT: 200
+};
+
+// Visual testing configuration to test rendering features
+export const visualConfig: Config = {
+  ...minimalConfig,
+  MAIN_LINE_WIDTH: 2.0,
+  SECONDARY_LINE_WIDTH: 1.0,
+  SHADOW_BLUR: 5,
+  SHADOW_COLOR: "rgba(0, 0, 0, 0.2)",
+  BASE_HUE: 40,
+  BASE_LIGHTNESS: 60
+};
+
+// Nutrient-rich environment configuration
+export const nutrientRichConfig: Config = {
+  ...minimalConfig,
+  BASE_NUTRIENT: 200,
+  NUTRIENT_POCKET_AMOUNT: 300,
+  NUTRIENT_POCKET_RADIUS: 4,
+  NUTRIENT_POCKET_DECAY_RATE: 0.1
+};
+
+// Advanced biological features configuration
+export const biologicalConfig: Config = {
+  ...minimalConfig,
+  CHEMOTROPISM_STRENGTH: 0.8,
+  NEGATIVE_AUTOTROPISM_STRENGTH: 0.5,
+  ENZYME_SECRETION_RADIUS: 4,
+  ENZYME_DIFFUSION_RATE: 0.2,
+  ENZYME_DIGESTION_RATE: 0.1,
+  SEASONAL_GROWTH_PATTERN: true,
+  CIRCADIAN_RHYTHM_AMPLITUDE: 0.3,
+  GEOTROPISM_STRENGTH: 0.3
+};

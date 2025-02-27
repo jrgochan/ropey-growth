@@ -55,10 +55,44 @@ let network: MycelialNetwork;
 let perlin: Perlin;
 
 /**
+ * Initialize parameter defaults for new parameters if not defined
+ */
+const initializeDefaultParameters = () => {
+  // Set defaults for biological parameters if not already set
+  if (config.CHEMOTROPISM_STRENGTH === undefined) config.CHEMOTROPISM_STRENGTH = 0.3;
+  if (config.NEGATIVE_AUTOTROPISM_STRENGTH === undefined) config.NEGATIVE_AUTOTROPISM_STRENGTH = 0.15;
+  if (config.LINE_THICKENING_FACTOR === undefined) config.LINE_THICKENING_FACTOR = 0.01;
+  if (config.GRADIENT_SAMPLING_RADIUS === undefined) config.GRADIENT_SAMPLING_RADIUS = 3;
+  if (config.HYPHAL_MATURATION_RATE === undefined) config.HYPHAL_MATURATION_RATE = 0.01;
+  if (config.TRANSPORT_EFFICIENCY_FACTOR === undefined) config.TRANSPORT_EFFICIENCY_FACTOR = 1.2;
+  if (config.MOISTURE_FACTOR === undefined) config.MOISTURE_FACTOR = 0.5;
+  
+  // Set defaults for advanced parameters if not already set
+  if (config.HYPHAL_RESPIRATION_RATE === undefined) config.HYPHAL_RESPIRATION_RATE = 0.005;
+  if (config.CARBON_NITROGEN_RATIO === undefined) config.CARBON_NITROGEN_RATIO = 25;
+  if (config.ENZYME_SECRETION_RADIUS === undefined) config.ENZYME_SECRETION_RADIUS = 2;
+  if (config.ENZYME_DIFFUSION_RATE === undefined) config.ENZYME_DIFFUSION_RATE = 0.1;
+  if (config.ENZYME_DIGESTION_RATE === undefined) config.ENZYME_DIGESTION_RATE = 0.05;
+  if (config.APICAL_DOMINANCE_FACTOR === undefined) config.APICAL_DOMINANCE_FACTOR = 0.3;
+  if (config.SUBSTRATE_PENETRATION_RESISTANCE === undefined) config.SUBSTRATE_PENETRATION_RESISTANCE = 0.1;
+  if (config.GEOTROPISM_STRENGTH === undefined) config.GEOTROPISM_STRENGTH = 0.1;
+  if (config.TEMPERATURE_OPTIMUM === undefined) config.TEMPERATURE_OPTIMUM = 25;
+  if (config.TEMPERATURE_RANGE === undefined) config.TEMPERATURE_RANGE = [5, 35];
+  if (config.SPORE_FORMATION_THRESHOLD === undefined) config.SPORE_FORMATION_THRESHOLD = 5000;
+  if (config.SEASONAL_GROWTH_PATTERN === undefined) config.SEASONAL_GROWTH_PATTERN = false;
+  if (config.CIRCADIAN_RHYTHM_AMPLITUDE === undefined) config.CIRCADIAN_RHYTHM_AMPLITUDE = 0.0;
+  if (config.PH_TOLERANCE_RANGE === undefined) config.PH_TOLERANCE_RANGE = [4.5, 7.0];
+  if (config.BACTERIAL_INTERACTION_FACTOR === undefined) config.BACTERIAL_INTERACTION_FACTOR = 0;
+};
+
+/**
  * Initialize the simulation and all required components.
  */
 const setup = () => {
   resizeCanvas();
+  
+  // Make sure all new parameters have default values
+  initializeDefaultParameters();
 
   // Initialize Perlin noise
   perlin = new Perlin();
@@ -344,6 +378,158 @@ const initGUI = () => {
     .name("Anastomosis Radius")
     .onChange(resetSimulation);
   miscFolder.open();
+
+  // Biological Parameters folder
+  const bioFolder = gui.addFolder("Biological Parameters");
+  if (config.CHEMOTROPISM_STRENGTH !== undefined) {
+    bioFolder
+      .add(config, "CHEMOTROPISM_STRENGTH", 0.0, 1.0)
+      .step(0.05)
+      .name("Chemotropism Strength")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.NEGATIVE_AUTOTROPISM_STRENGTH !== undefined) {
+    bioFolder
+      .add(config, "NEGATIVE_AUTOTROPISM_STRENGTH", 0.0, 1.0)
+      .step(0.05)
+      .name("Neg. Autotropism")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.LINE_THICKENING_FACTOR !== undefined) {
+    bioFolder
+      .add(config, "LINE_THICKENING_FACTOR", 0.0, 0.1)
+      .step(0.005)
+      .name("Line Thickening")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.GRADIENT_SAMPLING_RADIUS !== undefined) {
+    bioFolder
+      .add(config, "GRADIENT_SAMPLING_RADIUS", 1, 10)
+      .step(1)
+      .name("Gradient Sampling")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.HYPHAL_MATURATION_RATE !== undefined) {
+    bioFolder
+      .add(config, "HYPHAL_MATURATION_RATE", 0.01, 0.2)
+      .step(0.01)
+      .name("Maturation Rate")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.TRANSPORT_EFFICIENCY_FACTOR !== undefined) {
+    bioFolder
+      .add(config, "TRANSPORT_EFFICIENCY_FACTOR", 1.0, 3.0)
+      .step(0.1)
+      .name("Transport Efficiency")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.MOISTURE_FACTOR !== undefined) {
+    bioFolder
+      .add(config, "MOISTURE_FACTOR", 0.0, 1.0)
+      .step(0.05)
+      .name("Moisture Effect")
+      .onChange(resetSimulation);
+  }
+  
+  bioFolder.open();
+  
+  // Advanced Parameters folder
+  const advancedFolder = gui.addFolder("Advanced Parameters");
+  
+  if (config.HYPHAL_RESPIRATION_RATE !== undefined) {
+    advancedFolder
+      .add(config, "HYPHAL_RESPIRATION_RATE", 0.001, 0.05)
+      .step(0.001)
+      .name("Respiration Rate")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.CARBON_NITROGEN_RATIO !== undefined) {
+    advancedFolder
+      .add(config, "CARBON_NITROGEN_RATIO", 5, 50)
+      .step(1)
+      .name("C:N Ratio")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.ENZYME_SECRETION_RADIUS !== undefined) {
+    advancedFolder
+      .add(config, "ENZYME_SECRETION_RADIUS", 1, 10)
+      .step(0.5)
+      .name("Enzyme Radius")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.ENZYME_DIGESTION_RATE !== undefined) {
+    advancedFolder
+      .add(config, "ENZYME_DIGESTION_RATE", 0.01, 0.2)
+      .step(0.01)
+      .name("Enzyme Digestion")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.APICAL_DOMINANCE_FACTOR !== undefined) {
+    advancedFolder
+      .add(config, "APICAL_DOMINANCE_FACTOR", 0.0, 1.0)
+      .step(0.05)
+      .name("Apical Dominance")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.SUBSTRATE_PENETRATION_RESISTANCE !== undefined) {
+    advancedFolder
+      .add(config, "SUBSTRATE_PENETRATION_RESISTANCE", 0.0, 0.8)
+      .step(0.05)
+      .name("Substrate Resistance")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.GEOTROPISM_STRENGTH !== undefined) {
+    advancedFolder
+      .add(config, "GEOTROPISM_STRENGTH", 0.0, 0.5)
+      .step(0.05)
+      .name("Geotropism")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.TEMPERATURE_OPTIMUM !== undefined) {
+    advancedFolder
+      .add(config, "TEMPERATURE_OPTIMUM", 10, 35)
+      .step(1)
+      .name("Optimal Temperature")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.SPORE_FORMATION_THRESHOLD !== undefined) {
+    advancedFolder
+      .add(config, "SPORE_FORMATION_THRESHOLD", 1000, 10000)
+      .step(500)
+      .name("Spore Threshold")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.SEASONAL_GROWTH_PATTERN !== undefined) {
+    advancedFolder
+      .add(config, "SEASONAL_GROWTH_PATTERN")
+      .name("Seasonal Growth")
+      .onChange(resetSimulation);
+  }
+  
+  if (config.CIRCADIAN_RHYTHM_AMPLITUDE !== undefined) {
+    advancedFolder
+      .add(config, "CIRCADIAN_RHYTHM_AMPLITUDE", 0.0, 0.5)
+      .step(0.05)
+      .name("Circadian Rhythm")
+      .onChange(resetSimulation);
+  }
+  
+  advancedFolder.open();
 
   // Add a button to reset the simulation manually
   gui.add({ restart: () => setup() }, "restart").name("Restart Simulation");
