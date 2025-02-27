@@ -47,6 +47,14 @@ export interface Config {
   BASE_LIGHTNESS: number;
   LIGHTNESS_STEP: number;
   ANASTOMOSIS_RADIUS: number;
+  // New biologically realistic parameters
+  CHEMOTROPISM_STRENGTH: number; // How strongly hyphae grow toward nutrients
+  NEGATIVE_AUTOTROPISM_STRENGTH: number; // How strongly hyphae avoid their own kind
+  LINE_THICKENING_FACTOR: number; // Rate at which transport routes thicken with use
+  GRADIENT_SAMPLING_RADIUS: number; // Radius to sample nutrient gradients
+  HYPHAL_MATURATION_RATE: number; // Rate at which hyphae mature and harden
+  TRANSPORT_EFFICIENCY_FACTOR: number; // Efficiency of resource transport in mature hyphae
+  MOISTURE_FACTOR: number; // How much moisture influences growth
 }
 
 export const config = {
@@ -65,7 +73,7 @@ export const config = {
   BRANCH_DECAY: 0.9, // Fraction of parent's life for branches
   BRANCH_CHANCE: 0.5, // Probability of branching per step
   MAX_BRANCH_DEPTH: 50, // Maximum depth for nested branches
-  ANGLE_DRIFT_STRENGTH: 0.05, // Strength of angle drift influenced by Perlin noise
+  ANGLE_DRIFT_STRENGTH: 0.15, // Strength of angle drift influenced by Perlin noise (increased for more realistic meandering)
   WIGGLE_STRENGTH: 0.2, // Strength of wiggle for additional randomness
   PERLIN_SCALE: 0.05, // Scale for Perlin noise
 
@@ -132,5 +140,16 @@ export const config = {
   // -----------------------------
   // Miscellaneous Parameters
   // -----------------------------
-  ANASTOMOSIS_RADIUS: 0.25, // Radius within which tips fuse
+  ANASTOMOSIS_RADIUS: 0.75, // Radius within which tips fuse (increased for more realistic anastomosis)
+  
+  // -----------------------------
+  // Biologically Realistic Parameters
+  // -----------------------------
+  CHEMOTROPISM_STRENGTH: 0.6, // How strongly hyphae grow toward nutrients (0-1)
+  NEGATIVE_AUTOTROPISM_STRENGTH: 0.3, // How strongly hyphae avoid their own kind (0-1)
+  LINE_THICKENING_FACTOR: 0.02, // Rate at which transport routes thicken with use
+  GRADIENT_SAMPLING_RADIUS: 5, // Radius to sample nutrient gradients (in grid cells)
+  HYPHAL_MATURATION_RATE: 0.05, // Rate at which hyphae mature and harden per step
+  TRANSPORT_EFFICIENCY_FACTOR: 1.5, // Efficiency multiplier for resource transport in mature hyphae
+  MOISTURE_FACTOR: 0.7, // How much moisture influences growth (0-1)
 };
