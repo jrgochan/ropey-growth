@@ -46,7 +46,12 @@ export class Renderer3D {
       0.1, 
       1000
     );
-    this.camera.position.set(0, 0, config.CAMERA_DISTANCE);
+    // Position camera at an angle to better see the 3D growth from the origin
+    this.camera.position.set(
+      config.CAMERA_DISTANCE * 0.7, 
+      config.CAMERA_DISTANCE * 0.5, 
+      config.CAMERA_DISTANCE * 0.7
+    );
     
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -86,6 +91,21 @@ export class Renderer3D {
     // Add coordinate axes for reference (red = x, green = y, blue = z)
     const axesHelper = new THREE.AxesHelper(50);
     this.scene.add(axesHelper);
+    
+    // Add three grid helpers to visualize the primary planes (XY, XZ, YZ)
+    // XY plane (horizontal floor)
+    const gridHelperXY = new THREE.GridHelper(100, 10);
+    this.scene.add(gridHelperXY);
+    
+    // XZ plane (vertical wall 1)
+    const gridHelperXZ = new THREE.GridHelper(100, 10);
+    gridHelperXZ.rotation.x = Math.PI / 2;
+    this.scene.add(gridHelperXZ);
+    
+    // YZ plane (vertical wall 2)
+    const gridHelperYZ = new THREE.GridHelper(100, 10);
+    gridHelperYZ.rotation.z = Math.PI / 2;
+    this.scene.add(gridHelperYZ);
     
     // Handle window resize
     window.addEventListener('resize', this.onWindowResize.bind(this));

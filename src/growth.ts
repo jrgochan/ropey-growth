@@ -72,8 +72,10 @@ export class GrowthManager {
     private network: MycelialNetwork, // Injecting the network for resource flow
     renderer3D?: any, // Optional 3D renderer
   ) {
+    // Set growth radius and height for a spherical growth volume
     this.growthRadius = Math.min(width, height) * config.GROWTH_RADIUS_FACTOR;
-    this.growthHeight = this.growthRadius * config.GROWTH_HEIGHT_FACTOR;
+    // Make height equal to radius for a more spherical growth area
+    this.growthHeight = this.growthRadius;
     this.renderer3D = renderer3D;
   }
   
@@ -106,10 +108,12 @@ export class GrowthManager {
       // For 3D growth, add a slight vertical angle bias based on position
       const verticalAngle = (Math.random() - 0.5) * Math.PI * 0.2; // Small random vertical angle
       
+      // Start at the origin (0,0,0) of 3D space
+      
       const newTip: HyphaTip = {
-        x: this.centerX,
-        y: this.centerY,
-        z: 0, // Start at the surface
+        x: 0, // Start at origin instead of centerX
+        y: 0, // Start at origin instead of centerY
+        z: 0, // Start at origin in Z dimension
         angle,
         verticalAngle,
         life: config.BASE_LIFE,
@@ -120,7 +124,7 @@ export class GrowthManager {
       this.tips.push(newTip);
       
       // Log for testing purposes
-      console.log(`Initialized main tip ${i}: x=${this.centerX}, y=${this.centerY}, z=0, angle=${angle.toFixed(2)}, verticalAngle=${verticalAngle.toFixed(2)}`);
+      console.log(`Initialized main tip ${i}: x=0, y=0, z=0, angle=${angle.toFixed(2)}, verticalAngle=${verticalAngle.toFixed(2)}`);
     }
 
     // Create network nodes for each main branch
@@ -419,22 +423,23 @@ export class GrowthManager {
         // Vertical movement is determined by sine of vertical angle
         tip.z += (sinVerticalAngle * actualStepSize + verticalWiggleFactor) * growthFactor;
         
-        // Apply surface growth bias - tips near the surface tend to stay near the surface
-        if (tip.z < this.growthHeight * 0.1) {
-          const surfaceBias = Math.random() * config.SURFACE_GROWTH_BIAS;
-          if (tip.verticalAngle < 0) {
-            // If growing downward near surface, reduce downward angle
-            tip.verticalAngle *= (1 - surfaceBias);
+        // Apply growth bias to encourage more horizontal growth near the origin
+        // This creates a more spherical growth pattern from the origin
+        if (Math.abs(tip.z) < this.growthHeight * 0.1) {
+          const levelBias = Math.random() * config.SURFACE_GROWTH_BIAS;
+          
+          // If growing away from the origin plane (either up or down), reduce the vertical angle
+          if ((tip.verticalAngle > 0 && tip.z >= 0) || 
+              (tip.verticalAngle < 0 && tip.z <= 0)) {
+            tip.verticalAngle *= (1 - levelBias);
           }
         }
         
-        // Ensure z stays within bounds
-        tip.z = Math.max(0, Math.min(this.growthHeight, tip.z));
+        // For a spherical growth pattern, we don't need to enforce specific z bounds
+        // The 3D distance check below will handle containing the growth within the spherical boundary
 
-        // Fast distance check using squared distance (horizontal distance only)
-        const dx = tip.x - this.centerX;
-        const dy = tip.y - this.centerY;
-        const distSquared = dx * dx + dy * dy;
+        // 3D distance check using squared distance from origin
+        const distSquared = tip.x * tip.x + tip.y * tip.y + tip.z * tip.z;
         if (distSquared > this.growthRadius * this.growthRadius) {
           tip.life = 0;
           continue;

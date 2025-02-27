@@ -75,8 +75,8 @@ export const config = {
   // -----------------------------
   // Canvas & Growth Parameters
   // -----------------------------
-  GROWTH_RADIUS_FACTOR: 0.25, // Fraction of min(width, height) for growth boundary
-  MAIN_BRANCH_COUNT: 8, // Number of main branches (reduced from 10 for performance)
+  GROWTH_RADIUS_FACTOR: 0.35, // Increased radius for more visible 3D growth from origin
+  MAIN_BRANCH_COUNT: 12, // Increased number of main branches for better 3D coverage
 
   // -----------------------------
   // Growth Mechanics
@@ -161,15 +161,15 @@ export const config = {
   // 3D Growth Parameters
   // -----------------------------
   ENABLE_3D: true, // Enable 3D growth simulation
-  GROWTH_HEIGHT_FACTOR: 0.4, // Maximum height as a fraction of radius (increased for more realistic 3D growth)
-  VERTICAL_ANGLE_DRIFT_STRENGTH: 0.05, // Strength of vertical angle drift (increased for more natural 3D movement)
-  VERTICAL_WIGGLE_STRENGTH: 0.15, // Strength of vertical wiggle (increased for more natural 3D movement)
-  GRAVITY_INFLUENCE: 0.25, // Influence of gravity on growth direction (increased for more realistic growth)
-  SUBSTRATE_LAYERS: 4, // Number of vertical substrate layers (increased for more realistic substrate)
-  SUBSTRATE_LAYER_HEIGHT: 8, // Height of each substrate layer (reduced for finer granularity)
-  NUTRIENT_VERTICAL_DIFFUSION: 0.08, // Vertical diffusion rate of nutrients (increased for better nutrient flow)
-  NUTRIENT_GRADIENT_STRENGTH: 0.7, // Strength of nutrient gradient with depth (reduced for more even distribution)
-  SURFACE_GROWTH_BIAS: 0.6, // Bias towards growing near the surface (increased for more realistic surface growth)
+  GROWTH_HEIGHT_FACTOR: 0.6, // Maximum height as a fraction of radius (increased for more 3D volume)
+  VERTICAL_ANGLE_DRIFT_STRENGTH: 0.08, // Increased vertical angle drift for more 3D spread
+  VERTICAL_WIGGLE_STRENGTH: 0.2, // Increased vertical wiggle for more 3D movement
+  GRAVITY_INFLUENCE: 0.15, // Reduced gravity influence to allow more upward growth
+  SUBSTRATE_LAYERS: 6, // Increased number of substrate layers for more vertical space
+  SUBSTRATE_LAYER_HEIGHT: 8, // Height of each substrate layer
+  NUTRIENT_VERTICAL_DIFFUSION: 0.1, // Increased vertical diffusion for better nutrient flow
+  NUTRIENT_GRADIENT_STRENGTH: 0.5, // Reduced gradient strength for more even distribution
+  SURFACE_GROWTH_BIAS: 0.4, // Reduced bias to allow more vertical exploration
   
   // -----------------------------
   // 3D Rendering Parameters
