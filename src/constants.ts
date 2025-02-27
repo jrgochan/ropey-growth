@@ -79,16 +79,16 @@ export const config = {
   // Canvas & Growth Parameters
   // -----------------------------
   GROWTH_RADIUS_FACTOR: 0.8, // Fraction of min(width, height) for growth boundary
-  MAIN_BRANCH_COUNT: 15, // Number of main branches
+  MAIN_BRANCH_COUNT: 20, // Number of main branches (increased for denser growth)
 
   // -----------------------------
   // Growth Mechanics
   // -----------------------------
   STEP_SIZE: 3.0, // Base step size for each iteration
   GROWTH_SPEED_MULTIPLIER: 4.0, // Multiplier to control overall growth speed
-  BASE_LIFE: 600, // Base life for main tips
-  BRANCH_DECAY: 0.85, // Fraction of parent's life for branches
-  BRANCH_CHANCE: 0.7, // Probability of branching per step
+  BASE_LIFE: 1200, // Base life for main tips (significantly increased for much longer strands)
+  BRANCH_DECAY: 0.92, // Fraction of parent's life for branches (increased to make branches live longer)
+  BRANCH_CHANCE: 0.45, // Probability of branching per step (decreased for more defined strands)
   MAX_BRANCH_DEPTH: 100, // Maximum depth for nested branches
   ANGLE_DRIFT_STRENGTH: 0.15, // Strength of angle drift influenced by Perlin noise (increased for more realistic meandering)
   WIGGLE_STRENGTH: 0.2, // Strength of wiggle for additional randomness
@@ -106,7 +106,7 @@ export const config = {
   // Nutrient Pockets Parameters
   // -----------------------------
   NUTRIENT_POCKET_RADIUS: 5, // Radius of nutrient pockets in grid cells
-  NUTRIENT_POCKET_AMOUNT: 200, // Amount of nutrient added per pocket
+  NUTRIENT_POCKET_AMOUNT: 300, // Amount of nutrient added per pocket (increased for more resources)
   NUTRIENT_POCKET_DECAY_RATE: 0.2, // Decay rate of nutrient pockets per step
 
   // -----------------------------
@@ -118,8 +118,8 @@ export const config = {
   // -----------------------------
   // Mycelial Network Parameters
   // -----------------------------
-  INITIAL_RESOURCE_PER_TIP: 2000.0, // Initial resource for each hypha tip
-  RESOURCE_FLOW_RATE: 1.2, // Fraction of resource that flows each tick along edges
+  INITIAL_RESOURCE_PER_TIP: 3000.0, // Initial resource for each hypha tip (substantially increased for much longer lifespans)
+  RESOURCE_FLOW_RATE: 1.8, // Fraction of resource that flows each tick along edges (increased for better network formation)
 
   // -----------------------------
   // Growth Simulation Parameters
@@ -162,10 +162,10 @@ export const config = {
   // -----------------------------
   // Biologically Realistic Parameters
   // -----------------------------
-  CHEMOTROPISM_STRENGTH: 0.6, // How strongly hyphae grow toward nutrients (0-1)
-  NEGATIVE_AUTOTROPISM_STRENGTH: 0.3, // How strongly hyphae avoid their own kind (0-1)
-  LINE_THICKENING_FACTOR: 0.02, // Rate at which transport routes thicken with use
-  GRADIENT_SAMPLING_RADIUS: 5, // Radius to sample nutrient gradients (in grid cells)
+  CHEMOTROPISM_STRENGTH: 0.7, // How strongly hyphae grow toward nutrients (0-1) (increased for better resource seeking)
+  NEGATIVE_AUTOTROPISM_STRENGTH: 0.5, // How strongly hyphae avoid their own kind (0-1) (increased to spread out hyphae)
+  LINE_THICKENING_FACTOR: 0.05, // Rate at which transport routes thicken with use (increased for more visible transport routes)
+  GRADIENT_SAMPLING_RADIUS: 8, // Radius to sample nutrient gradients (in grid cells) (increased for longer-range sensing)
   HYPHAL_MATURATION_RATE: 0.05, // Rate at which hyphae mature and harden per step
   TRANSPORT_EFFICIENCY_FACTOR: 1.5, // Efficiency multiplier for resource transport in mature hyphae
   MOISTURE_FACTOR: 0.7, // How much moisture influences growth (0-1)
@@ -177,9 +177,9 @@ export const config = {
   ENZYME_DIFFUSION_RATE: 0.15, // Rate at which enzymes diffuse through substrate
   ENZYME_DIGESTION_RATE: 0.08, // Rate at which enzymes break down substrate into nutrients
   CARBON_NITROGEN_RATIO: 25, // Ratio of carbon to nitrogen nutrients (C:N) in substrate (realistic for wood)
-  HYPHAL_RESPIRATION_RATE: 0.02, // Rate at which hyphae consume resources for maintenance
+  HYPHAL_RESPIRATION_RATE: 0.005, // Rate at which hyphae consume resources for maintenance (reduced to prevent center die-off)
   SPORE_FORMATION_THRESHOLD: 5000, // Resource threshold for spore formation
-  APICAL_DOMINANCE_FACTOR: 0.6, // Suppression of nearby branching by active tips (0-1)
+  APICAL_DOMINANCE_FACTOR: 0.8, // Suppression of nearby branching by active tips (0-1) (increased for more defined strands)
   SUBSTRATE_PENETRATION_RESISTANCE: 0.3, // Resistance of substrate to hyphal growth (0-1)
   SEASONAL_GROWTH_PATTERN: true, // Whether to simulate seasonal growth patterns
   CIRCADIAN_RHYTHM_AMPLITUDE: 0.2, // Daily oscillation in growth activity (0-1)

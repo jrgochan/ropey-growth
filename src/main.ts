@@ -129,268 +129,171 @@ const animate = () => {
 
 // GUI for dynamic configuration
 const initGUI = () => {
-  const gui = new dat.GUI();
-
-  // const growthFolder = gui.addFolder("Growth Parameters");
-  // growthFolder.add(config, "STEP_SIZE", 0.1, 10, 0.1).name("Step Size");
-  // growthFolder
-  //   .add(config, "GROWTH_SPEED_MULTIPLIER", 0.01, 5, 0.01)
-  //   .name("Growth Speed");
-  // growthFolder.add(config, "MAIN_BRANCH_COUNT", 1, 500, 1).name("Main Branch Count");
-  // growthFolder.add(config, "BRANCH_CHANCE", 0, 1, 0.01).name("Branch Chance");
-  // growthFolder.add(config, "MAX_BRANCH_DEPTH", 1, 1000, 1).name("Max Branch Depth");
-
-  // const renderingFolder = gui.addFolder("Rendering");
-  // renderingFolder
-  //   .add(config, "MAIN_LINE_WIDTH", 0.1, 10, 0.1)
-  //   .name("Main Line Width");
-  // renderingFolder
-  //   .add(config, "SECONDARY_LINE_WIDTH", 0.1, 5, 0.1)
-  //   .name("Secondary Line Width");
-  // renderingFolder
-  //   .add(config, "MAIN_ALPHA", 0, 1, 0.01)
-  //   .name("Main Line Opacity");
-  // renderingFolder
-  //   .add(config, "SECONDARY_ALPHA", 0, 1, 0.01)
-  //   .name("Secondary Line Opacity");
-
-  // const environmentFolder = gui.addFolder("Environment");
-  // environmentFolder
-  //   .add(config, "NUTRIENT_CONSUMPTION_RATE", 0.01, 5, 0.01)
-  //   .name("Nutrient Consumption");
-  // environmentFolder
-  //   .add(config, "NUTRIENT_DIFFUSION", 0.01, 1, 0.01)
-  //   .name("Nutrient Diffusion");
-
-  // Create GUI folders and controllers
-
-  // Canvas & Growth Parameters
-  const growthFolder = gui.addFolder("Growth Parameters");
-  growthFolder
-    .add(config, "GROWTH_RADIUS_FACTOR", 0.0, 1.0)
-    .step(0.01)
-    .name("Growth Radius Factor")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "MAIN_BRANCH_COUNT", 1, 100)
-    .step(1)
-    .name("Main Branch Count")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "STEP_SIZE", 0, 5)
-    .step(0.1)
-    .name("Step Size")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "GROWTH_SPEED_MULTIPLIER", 0.0, 1.0)
-    .step(0.1)
-    .name("Growth Speed")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "BASE_LIFE", 0, 5000)
-    .step(100)
-    .name("Base Life")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "BRANCH_DECAY", 0.0, 1.0)
-    .step(0.05)
-    .name("Branch Decay")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "BRANCH_CHANCE", 0.0, 1.0)
-    .step(0.01)
-    .name("Branch Chance")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "MAX_BRANCH_DEPTH", 0, 1000)
-    .step(1)
-    .name("Max Branch Depth")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "ANGLE_DRIFT_STRENGTH", 0.0, 0.2)
-    .step(0.01)
-    .name("Angle Drift")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "WIGGLE_STRENGTH", 0.0, 1.0)
-    .step(0.05)
-    .name("Wiggle Strength")
-    .onChange(resetSimulation);
-  growthFolder
-    .add(config, "PERLIN_SCALE", 0.01, 0.2)
-    .step(0.01)
-    .name("Perlin Scale")
-    .onChange(resetSimulation);
-  growthFolder.open();
-
-  // Environmental Parameters
-  const envFolder = gui.addFolder("Environmental Parameters");
-  envFolder
-    .add(config, "ENV_GRID_CELL_SIZE", 0.5, 5)
-    .step(0.5)
-    .name("Grid Cell Size")
-    .onChange(resetSimulation);
-  envFolder
-    .add(config, "BASE_NUTRIENT", 50, 200)
-    .step(10)
-    .name("Base Nutrient")
-    .onChange(resetSimulation);
-  envFolder
-    .add(config, "NUTRIENT_DIFFUSION", 0.0, 0.5)
-    .step(0.05)
-    .name("Nutrient Diffusion")
-    .onChange(resetSimulation);
-  envFolder
-    .add(config, "NUTRIENT_CONSUMPTION_RATE", 0.1, 5.0)
-    .step(0.1)
-    .name("Nutrient Consumption")
-    .onChange(resetSimulation);
-  envFolder.open();
-
-  // Nutrient Pockets Parameters
-  const pocketFolder = gui.addFolder("Nutrient Pockets");
-  pocketFolder
-    .add(config, "NUTRIENT_POCKET_RADIUS", 1, 5)
-    .step(1)
-    .name("Pocket Radius")
-    .onChange(resetSimulation);
-  pocketFolder
-    .add(config, "NUTRIENT_POCKET_AMOUNT", 50, 200)
-    .step(10)
-    .name("Pocket Amount")
-    .onChange(resetSimulation);
-  pocketFolder
-    .add(config, "NUTRIENT_POCKET_DECAY_RATE", 0.1, 1.0)
-    .step(0.1)
-    .name("Pocket Decay Rate")
-    .onChange(resetSimulation);
-  pocketFolder.open();
-
-  // Mycelial Network Parameters
-  const networkFolder = gui.addFolder("Mycelial Network");
-  networkFolder
-    .add(config, "INITIAL_RESOURCE_PER_TIP", 1000, 5000)
-    .step(100)
-    .name("Initial Resource per Tip")
-    .onChange(resetSimulation);
-  networkFolder
-    .add(config, "RESOURCE_FLOW_RATE", 0.5, 2.0)
-    .step(0.1)
-    .name("Resource Flow Rate")
-    .onChange(resetSimulation);
-  networkFolder.open();
-
-  // Growth Simulation Parameters
-  const simFolder = gui.addFolder("Simulation Parameters");
-  simFolder
-    .add(config, "TIME_LAPSE_FACTOR", 1, 10)
-    .step(1)
-    .name("Time Lapse Factor")
-    .onChange(resetSimulation);
-  simFolder
-    .add(config, "SECONDARY_FAN_COUNT", 0.0, 3)
-    .step(0.01)
-    .name("Secondary Fan Count")
-    .onChange(resetSimulation);
-  simFolder
-    .add(config, "WIDER_SECONDARY_ANGLE", 0, Math.PI / 2)
-    .step(0.1)
-    .name("Secondary Angle")
-    .onChange(resetSimulation);
-  simFolder.open();
-
+  // Create main GUI
+  const gui = new dat.GUI({ width: 300 });
+  
+  // Create tab-like structure with main categories
+  const mainTabs = {
+    currentTab: "Visual",
+    options: ["Visual", "Biology", "Growth", "Environment", "Advanced"]
+  };
+  
+  // Add controllers for each tab category
+  gui.add(mainTabs, 'currentTab', mainTabs.options).name('Select Category').onChange((value) => {
+    // Hide all folders
+    Object.values(folders).forEach(folder => {
+      folder.hide();
+      folder.close();
+    });
+    
+    // Show only the folders for the selected tab
+    switch(value) {
+      case "Visual":
+        folders.renderFolder.show();
+        folders.lineFolder.show();
+        folders.colorFolder.show();
+        break;
+      case "Biology":
+        folders.bioFolder.show();
+        folders.networkFolder.show();
+        folders.miscFolder.show();
+        break;
+      case "Growth":
+        folders.growthFolder.show();
+        folders.simFolder.show();
+        break;
+      case "Environment":
+        folders.envFolder.show();
+        folders.pocketFolder.show();
+        break;
+      case "Advanced":
+        folders.advancedFolder.show();
+        break;
+    }
+  });
+  
+  // Add preset manager
+  const presets = {
+    current: "Default",
+    options: ["Default", "Dense Growth", "Minimal", "Colorful", "Realistic"],
+    save: () => {
+      // Get current configuration and save it
+      const currentPreset = JSON.stringify(config);
+      localStorage.setItem("mycelium-custom-preset", currentPreset);
+      alert("Custom preset saved!");
+    },
+    load: () => {
+      // Load saved configuration
+      const savedPreset = localStorage.getItem("mycelium-custom-preset");
+      if (savedPreset) {
+        const presetConfig = JSON.parse(savedPreset);
+        Object.assign(config, presetConfig);
+        resetSimulation();
+        alert("Custom preset loaded!");
+      } else {
+        alert("No custom preset found!");
+      }
+    }
+  };
+  
+  // Add preset selection
+  gui.add(presets, 'current', presets.options).name('Preset').onChange((value) => {
+    applyPreset(value);
+  });
+  
+  // Add preset save/load buttons
+  const presetFolder = gui.addFolder('Preset Management');
+  presetFolder.add(presets, 'save').name('Save Current Setup');
+  presetFolder.add(presets, 'load').name('Load Custom Setup');
+  
+  // Create all folders (but initially hide them)
+  const folders = {};
+  
+  // Restart button (always visible)
+  gui.add({ restart: () => setup() }, "restart").name("Restart Simulation");
+  
+  // VISUAL TAB FOLDERS
   // Rendering Parameters
-  const renderFolder = gui.addFolder("Rendering Parameters");
-  renderFolder
+  folders.renderFolder = gui.addFolder("Display Settings");
+  folders.renderFolder
     .add(config, "BACKGROUND_ALPHA", 0.0, 0.1)
     .step(0.01)
     .name("Background Alpha")
     .onChange(resetSimulation);
-  renderFolder
+  folders.renderFolder
     .add(config, "FADE_START_FACTOR", 0.5, 1.0)
     .step(0.05)
     .name("Fade Start Factor")
     .onChange(resetSimulation);
-  renderFolder
+  folders.renderFolder
     .add(config, "FADE_END_FACTOR", 0.8, 1.2)
     .step(0.05)
     .name("Fade End Factor")
     .onChange(resetSimulation);
-  renderFolder
+  folders.renderFolder
     .add(config, "SHADOW_BLUR", 0, 20)
     .step(1)
     .name("Shadow Blur")
     .onChange(resetSimulation);
-  renderFolder
+  folders.renderFolder
     .addColor(config, "SHADOW_COLOR")
     .name("Shadow Color")
     .onChange(resetSimulation);
-  renderFolder.open();
 
   // Line Rendering Parameters
-  const lineFolder = gui.addFolder("Line Rendering");
-  lineFolder
+  folders.lineFolder = gui.addFolder("Line Appearance");
+  folders.lineFolder
     .add(config, "MAIN_LINE_WIDTH", 1, 5)
     .step(0.5)
     .name("Main Line Width")
     .onChange(resetSimulation);
-  lineFolder
+  folders.lineFolder
     .add(config, "SECONDARY_LINE_WIDTH", 0.5, 3)
     .step(0.5)
     .name("Secondary Line Width")
     .onChange(resetSimulation);
-  lineFolder
+  folders.lineFolder
     .add(config, "MAIN_ALPHA", 0.5, 1.0)
     .step(0.05)
     .name("Main Alpha")
     .onChange(resetSimulation);
-  lineFolder
+  folders.lineFolder
     .add(config, "SECONDARY_ALPHA", 0.3, 1.0)
     .step(0.05)
     .name("Secondary Alpha")
     .onChange(resetSimulation);
-  lineFolder.open();
 
   // Color Parameters
-  const colorFolder = gui.addFolder("Color Parameters");
-  colorFolder
+  folders.colorFolder = gui.addFolder("Color Settings");
+  folders.colorFolder
     .add(config, "BASE_HUE", 0, 360)
     .step(1)
     .name("Base Hue")
     .onChange(resetSimulation);
-  colorFolder
+  folders.colorFolder
     .add(config, "BASE_LIGHTNESS", 50, 100)
     .step(1)
     .name("Base Lightness")
     .onChange(resetSimulation);
-  colorFolder
+  folders.colorFolder
     .add(config, "LIGHTNESS_STEP", 1, 10)
     .step(1)
     .name("Lightness Step")
     .onChange(resetSimulation);
-  colorFolder.open();
 
-  // Miscellaneous Parameters
-  const miscFolder = gui.addFolder("Miscellaneous");
-  miscFolder
-    .add(config, "ANASTOMOSIS_RADIUS", 0.01, 1)
-    .step(0.01)
-    .name("Anastomosis Radius")
-    .onChange(resetSimulation);
-  miscFolder.open();
-
+  // BIOLOGY TAB FOLDERS
   // Biological Parameters folder
-  const bioFolder = gui.addFolder("Biological Parameters");
+  folders.bioFolder = gui.addFolder("Biological Properties");
   if (config.CHEMOTROPISM_STRENGTH !== undefined) {
-    bioFolder
+    folders.bioFolder
       .add(config, "CHEMOTROPISM_STRENGTH", 0.0, 1.0)
       .step(0.05)
-      .name("Chemotropism Strength")
+      .name("Chemotropism")
       .onChange(resetSimulation);
   }
   
   if (config.NEGATIVE_AUTOTROPISM_STRENGTH !== undefined) {
-    bioFolder
+    folders.bioFolder
       .add(config, "NEGATIVE_AUTOTROPISM_STRENGTH", 0.0, 1.0)
       .step(0.05)
       .name("Neg. Autotropism")
@@ -398,7 +301,7 @@ const initGUI = () => {
   }
   
   if (config.LINE_THICKENING_FACTOR !== undefined) {
-    bioFolder
+    folders.bioFolder
       .add(config, "LINE_THICKENING_FACTOR", 0.0, 0.1)
       .step(0.005)
       .name("Line Thickening")
@@ -406,7 +309,7 @@ const initGUI = () => {
   }
   
   if (config.GRADIENT_SAMPLING_RADIUS !== undefined) {
-    bioFolder
+    folders.bioFolder
       .add(config, "GRADIENT_SAMPLING_RADIUS", 1, 10)
       .step(1)
       .name("Gradient Sampling")
@@ -414,36 +317,172 @@ const initGUI = () => {
   }
   
   if (config.HYPHAL_MATURATION_RATE !== undefined) {
-    bioFolder
+    folders.bioFolder
       .add(config, "HYPHAL_MATURATION_RATE", 0.01, 0.2)
       .step(0.01)
       .name("Maturation Rate")
       .onChange(resetSimulation);
   }
   
-  if (config.TRANSPORT_EFFICIENCY_FACTOR !== undefined) {
-    bioFolder
-      .add(config, "TRANSPORT_EFFICIENCY_FACTOR", 1.0, 3.0)
-      .step(0.1)
-      .name("Transport Efficiency")
-      .onChange(resetSimulation);
-  }
-  
   if (config.MOISTURE_FACTOR !== undefined) {
-    bioFolder
+    folders.bioFolder
       .add(config, "MOISTURE_FACTOR", 0.0, 1.0)
       .step(0.05)
       .name("Moisture Effect")
       .onChange(resetSimulation);
   }
   
-  bioFolder.open();
+  // Mycelial Network Parameters
+  folders.networkFolder = gui.addFolder("Network Properties");
+  folders.networkFolder
+    .add(config, "TRANSPORT_EFFICIENCY_FACTOR", 1.0, 3.0)
+    .step(0.1)
+    .name("Transport Efficiency")
+    .onChange(resetSimulation);
+  folders.networkFolder
+    .add(config, "INITIAL_RESOURCE_PER_TIP", 1000, 5000)
+    .step(100)
+    .name("Initial Resources")
+    .onChange(resetSimulation);
+  folders.networkFolder
+    .add(config, "RESOURCE_FLOW_RATE", 0.5, 2.0)
+    .step(0.1)
+    .name("Resource Flow Rate")
+    .onChange(resetSimulation);
   
+  // Miscellaneous Parameters
+  folders.miscFolder = gui.addFolder("Connection Properties");
+  folders.miscFolder
+    .add(config, "ANASTOMOSIS_RADIUS", 0.01, 1)
+    .step(0.01)
+    .name("Anastomosis Radius")
+    .onChange(resetSimulation);
+
+  // GROWTH TAB FOLDERS
+  // Canvas & Growth Parameters
+  folders.growthFolder = gui.addFolder("Growth Parameters");
+  folders.growthFolder
+    .add(config, "GROWTH_RADIUS_FACTOR", 0.0, 1.0)
+    .step(0.01)
+    .name("Growth Radius")
+    .onChange(resetSimulation);
+  folders.growthFolder
+    .add(config, "MAIN_BRANCH_COUNT", 1, 100)
+    .step(1)
+    .name("Main Branch Count")
+    .onChange(resetSimulation);
+  folders.growthFolder
+    .add(config, "STEP_SIZE", 0, 5)
+    .step(0.1)
+    .name("Step Size")
+    .onChange(resetSimulation);
+  folders.growthFolder
+    .add(config, "GROWTH_SPEED_MULTIPLIER", 0.0, 1.0)
+    .step(0.1)
+    .name("Growth Speed")
+    .onChange(resetSimulation);
+  folders.growthFolder
+    .add(config, "BASE_LIFE", 0, 5000)
+    .step(100)
+    .name("Base Life")
+    .onChange(resetSimulation);
+  folders.growthFolder
+    .add(config, "BRANCH_DECAY", 0.0, 1.0)
+    .step(0.05)
+    .name("Branch Decay")
+    .onChange(resetSimulation);
+  folders.growthFolder
+    .add(config, "BRANCH_CHANCE", 0.0, 1.0)
+    .step(0.01)
+    .name("Branch Chance")
+    .onChange(resetSimulation);
+  folders.growthFolder
+    .add(config, "MAX_BRANCH_DEPTH", 0, 1000)
+    .step(1)
+    .name("Max Branch Depth")
+    .onChange(resetSimulation);
+
+  // Growth Simulation Parameters
+  folders.simFolder = gui.addFolder("Growth Pattern");
+  folders.simFolder
+    .add(config, "ANGLE_DRIFT_STRENGTH", 0.0, 0.2)
+    .step(0.01)
+    .name("Angle Drift")
+    .onChange(resetSimulation);
+  folders.simFolder
+    .add(config, "WIGGLE_STRENGTH", 0.0, 1.0)
+    .step(0.05)
+    .name("Wiggle Strength")
+    .onChange(resetSimulation);
+  folders.simFolder
+    .add(config, "PERLIN_SCALE", 0.01, 0.2)
+    .step(0.01)
+    .name("Perlin Scale")
+    .onChange(resetSimulation);
+  folders.simFolder
+    .add(config, "TIME_LAPSE_FACTOR", 1, 10)
+    .step(1)
+    .name("Time Lapse Factor")
+    .onChange(resetSimulation);
+  folders.simFolder
+    .add(config, "SECONDARY_FAN_COUNT", 0.0, 3)
+    .step(0.01)
+    .name("Secondary Fan Count")
+    .onChange(resetSimulation);
+  folders.simFolder
+    .add(config, "WIDER_SECONDARY_ANGLE", 0, Math.PI / 2)
+    .step(0.1)
+    .name("Secondary Angle")
+    .onChange(resetSimulation);
+
+  // ENVIRONMENT TAB FOLDERS
+  // Environmental Parameters
+  folders.envFolder = gui.addFolder("Environmental Settings");
+  folders.envFolder
+    .add(config, "ENV_GRID_CELL_SIZE", 0.5, 5)
+    .step(0.5)
+    .name("Grid Cell Size")
+    .onChange(resetSimulation);
+  folders.envFolder
+    .add(config, "BASE_NUTRIENT", 50, 200)
+    .step(10)
+    .name("Base Nutrient")
+    .onChange(resetSimulation);
+  folders.envFolder
+    .add(config, "NUTRIENT_DIFFUSION", 0.0, 0.5)
+    .step(0.05)
+    .name("Nutrient Diffusion")
+    .onChange(resetSimulation);
+  folders.envFolder
+    .add(config, "NUTRIENT_CONSUMPTION_RATE", 0.1, 5.0)
+    .step(0.1)
+    .name("Nutrient Consumption")
+    .onChange(resetSimulation);
+
+  // Nutrient Pockets Parameters
+  folders.pocketFolder = gui.addFolder("Nutrient Distribution");
+  folders.pocketFolder
+    .add(config, "NUTRIENT_POCKET_RADIUS", 1, 5)
+    .step(1)
+    .name("Pocket Radius")
+    .onChange(resetSimulation);
+  folders.pocketFolder
+    .add(config, "NUTRIENT_POCKET_AMOUNT", 50, 200)
+    .step(10)
+    .name("Pocket Amount")
+    .onChange(resetSimulation);
+  folders.pocketFolder
+    .add(config, "NUTRIENT_POCKET_DECAY_RATE", 0.1, 1.0)
+    .step(0.1)
+    .name("Pocket Decay Rate")
+    .onChange(resetSimulation);
+
+  // ADVANCED TAB FOLDERS
   // Advanced Parameters folder
-  const advancedFolder = gui.addFolder("Advanced Parameters");
+  folders.advancedFolder = gui.addFolder("Advanced Settings");
   
   if (config.HYPHAL_RESPIRATION_RATE !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "HYPHAL_RESPIRATION_RATE", 0.001, 0.05)
       .step(0.001)
       .name("Respiration Rate")
@@ -451,7 +490,7 @@ const initGUI = () => {
   }
   
   if (config.CARBON_NITROGEN_RATIO !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "CARBON_NITROGEN_RATIO", 5, 50)
       .step(1)
       .name("C:N Ratio")
@@ -459,7 +498,7 @@ const initGUI = () => {
   }
   
   if (config.ENZYME_SECRETION_RADIUS !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "ENZYME_SECRETION_RADIUS", 1, 10)
       .step(0.5)
       .name("Enzyme Radius")
@@ -467,7 +506,7 @@ const initGUI = () => {
   }
   
   if (config.ENZYME_DIGESTION_RATE !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "ENZYME_DIGESTION_RATE", 0.01, 0.2)
       .step(0.01)
       .name("Enzyme Digestion")
@@ -475,7 +514,7 @@ const initGUI = () => {
   }
   
   if (config.APICAL_DOMINANCE_FACTOR !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "APICAL_DOMINANCE_FACTOR", 0.0, 1.0)
       .step(0.05)
       .name("Apical Dominance")
@@ -483,7 +522,7 @@ const initGUI = () => {
   }
   
   if (config.SUBSTRATE_PENETRATION_RESISTANCE !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "SUBSTRATE_PENETRATION_RESISTANCE", 0.0, 0.8)
       .step(0.05)
       .name("Substrate Resistance")
@@ -491,7 +530,7 @@ const initGUI = () => {
   }
   
   if (config.GEOTROPISM_STRENGTH !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "GEOTROPISM_STRENGTH", 0.0, 0.5)
       .step(0.05)
       .name("Geotropism")
@@ -499,7 +538,7 @@ const initGUI = () => {
   }
   
   if (config.TEMPERATURE_OPTIMUM !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "TEMPERATURE_OPTIMUM", 10, 35)
       .step(1)
       .name("Optimal Temperature")
@@ -507,7 +546,7 @@ const initGUI = () => {
   }
   
   if (config.SPORE_FORMATION_THRESHOLD !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "SPORE_FORMATION_THRESHOLD", 1000, 10000)
       .step(500)
       .name("Spore Threshold")
@@ -515,26 +554,67 @@ const initGUI = () => {
   }
   
   if (config.SEASONAL_GROWTH_PATTERN !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "SEASONAL_GROWTH_PATTERN")
       .name("Seasonal Growth")
       .onChange(resetSimulation);
   }
   
   if (config.CIRCADIAN_RHYTHM_AMPLITUDE !== undefined) {
-    advancedFolder
+    folders.advancedFolder
       .add(config, "CIRCADIAN_RHYTHM_AMPLITUDE", 0.0, 0.5)
       .step(0.05)
       .name("Circadian Rhythm")
       .onChange(resetSimulation);
   }
   
-  advancedFolder.open();
-
-  // Add a button to reset the simulation manually
-  gui.add({ restart: () => setup() }, "restart").name("Restart Simulation");
-
-  gui.close();
+  // Initially hide all folders except Visual
+  Object.values(folders).forEach(folder => {
+    folder.hide();
+  });
+  
+  // Show only visual folders by default
+  folders.renderFolder.show();
+  folders.lineFolder.show();
+  folders.colorFolder.show();
+  
+  // Function to apply presets
+  function applyPreset(presetName) {
+    switch(presetName) {
+      case "Dense Growth":
+        config.MAIN_BRANCH_COUNT = 50;
+        config.BRANCH_CHANCE = 0.6;
+        config.GROWTH_SPEED_MULTIPLIER = 0.8;
+        config.MAX_BRANCH_DEPTH = 200;
+        break;
+      case "Minimal":
+        config.MAIN_BRANCH_COUNT = 8;
+        config.BRANCH_CHANCE = 0.2;
+        config.MAX_BRANCH_DEPTH = 30;
+        config.MAIN_LINE_WIDTH = 2.0;
+        config.SECONDARY_LINE_WIDTH = 1.0;
+        break;
+      case "Colorful":
+        config.BASE_HUE = 280; // Purple
+        config.LIGHTNESS_STEP = 8;
+        config.SHADOW_COLOR = "rgba(120, 0, 180, 0.2)";
+        config.BASE_LIGHTNESS = 70;
+        break;
+      case "Realistic":
+        config.CHEMOTROPISM_STRENGTH = 0.8;
+        config.NEGATIVE_AUTOTROPISM_STRENGTH = 0.6;
+        config.MOISTURE_FACTOR = 0.8;
+        config.BASE_HUE = 40; // More brownish
+        config.WIGGLE_STRENGTH = 0.4;
+        config.ANGLE_DRIFT_STRENGTH = 0.18;
+        break;
+      case "Default":
+        // Reset to default values in constants.ts
+        setup();
+        break;
+    }
+    resetSimulation();
+  }
 };
 
 setup();

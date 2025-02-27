@@ -121,10 +121,10 @@ export class GrowthManager {
       this.envGPU.createHeterogeneousEnvironment();
     } else {
       // Otherwise use simple nutrient pockets
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 80; i++) { // Increased number of nutrient pockets
         // Create pockets in a ring around the center
         const angle = Math.random() * Math.PI * 2;
-        const distance = Math.random() * this.growthRadius * 0.85; // Within 85% of growth radius
+        const distance = Math.random() * this.growthRadius * 0.9; // Within 90% of growth radius (expanded)
         
         const pocketX = this.centerX + Math.cos(angle) * distance;
         const pocketY = this.centerY + Math.sin(angle) * distance;
@@ -227,11 +227,12 @@ export class GrowthManager {
         this.envGPU.diffuseNutrients();
       }
       
-      // Periodically add new nutrient pockets (every 200 frames)
-      if (this.simulationTime % 200 === 0) {
-        // Add a random nutrient pocket somewhere in the growth radius
-        const angle = Math.random() * Math.PI * 2;
-        const distance = Math.random() * this.growthRadius * 0.9;
+      // Periodically add new nutrient pockets (every 100 frames - more frequent replenishment)
+      if (this.simulationTime % 100 === 0) {
+        // Add random nutrient pockets throughout the growth radius
+        for (let i = 0; i < 3; i++) { // Add multiple pockets at once
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * this.growthRadius * 0.95; // Extend almost to boundary
         
         const pocketX = this.centerX + Math.cos(angle) * distance;
         const pocketY = this.centerY + Math.sin(angle) * distance;
@@ -239,8 +240,27 @@ export class GrowthManager {
         this.envGPU.addNutrient(
           pocketX, 
           pocketY, 
-          config.NUTRIENT_POCKET_AMOUNT * 0.5 * (1 + Math.random())
+          config.NUTRIENT_POCKET_AMOUNT * 0.7 * (1 + Math.random()) // Increased nutrient amount
         );
+        }
+      }
+      
+      // Enhance growth near the edge of the circle (every 300 frames)
+      if (this.simulationTime % 300 === 0) {
+        // Add a ring of nutrients near the boundary to stimulate growth
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const distance = this.growthRadius * 0.85;
+          
+          const pocketX = this.centerX + Math.cos(angle) * distance;
+          const pocketY = this.centerY + Math.sin(angle) * distance;
+          
+          this.envGPU.addNutrient(
+            pocketX, 
+            pocketY, 
+            config.NUTRIENT_POCKET_AMOUNT * 1.2
+          );
+        }
       }
     }
 
@@ -337,9 +357,20 @@ export class GrowthManager {
       // BASAL METABOLISM - Consume resources for maintenance
       // Real fungi have a maintenance cost even when not growing
       // Use much lower respiration rate for now to prevent tips from dying too quickly
-      const baseRespirationRate = tip.basalRespirationRate * 0.1; // Reduced by 90% for better simulation
-      tip.carbonNutrient -= baseRespirationRate * (environmentalFactors.temperatureFactor || 1);
-      tip.nitrogenNutrient -= baseRespirationRate * 0.1 * (environmentalFactors.temperatureFactor || 1);
+      // Further reduced respiration rate to prevent central die-off
+      const baseRespirationRate = tip.basalRespirationRate * 0.05; // Reduced by 95% for better simulation
+      
+      // Distance from center factor - farther from center = higher respiration (encouraging central network persistence)
+      const centerDist = Math.hypot(tip.x - this.centerX, tip.y - this.centerY);
+      const maxDist = this.growthRadius * 0.8;
+      const distFactor = Math.min(1, centerDist / maxDist);
+      
+      // Apply distance-based scaling to respiration (center hyphae consume much less)
+      // Even more reduced respiration for central hyphae to ensure they persist
+      const adjustedRespiration = baseRespirationRate * (0.05 + distFactor * 0.95);
+      
+      tip.carbonNutrient -= adjustedRespiration * (environmentalFactors.temperatureFactor || 1);
+      tip.nitrogenNutrient -= adjustedRespiration * 0.1 * (environmentalFactors.temperatureFactor || 1);
       
       // Apply daily and seasonal cycles if supported and enabled
       if (environmentalFactors.circadianFactor && 
@@ -565,8 +596,15 @@ export class GrowthManager {
 
       // Check if tip has gone outside the growth radius
       const dist = Math.hypot(tip.x - this.centerX, tip.y - this.centerY);
-      if (dist > this.growthRadius) {
-        tip.life = 0;
+      if (dist > this.growthRadius * 0.99) {
+        // Reduce life more gradually as it approaches boundary to prevent abrupt ending
+        const boundaryFactor = (dist - this.growthRadius * 0.9) / (this.growthRadius * 0.09);
+        tip.life = Math.max(0, tip.life - boundaryFactor * 50);
+        
+        // Only kill it if it's well past the boundary
+        if (dist > this.growthRadius * 1.05) {
+          tip.life = 0;
+        }
         continue;
       }
 
@@ -614,12 +652,13 @@ export class GrowthManager {
               tip.specialization = 0.8;
               // Aerial hyphae are less influenced by chemotropism, more by geotropism
               tip.enzymeActivity *= 0.5; // Reduced enzyme activity
-            } else if (nutrientAbundance > 0.7 && tip.resource > config.INITIAL_RESOURCE_PER_TIP * 2) {
+            } else if (nutrientAbundance > 0.5 && tip.resource > config.INITIAL_RESOURCE_PER_TIP * 1.5) {
               // High nutrients with significant resources - form rhizomorph
+              // Lowered threshold to encourage more rhizomorph formation
               tip.growthType = "rhizomorph";
-              tip.specialization = 0.8;
+              tip.specialization = 0.9; // Higher specialization
               // Rhizomorphs have higher resource transport capacity
-              tip.enzymeActivity *= 1.5; // Increased enzyme activity
+              tip.enzymeActivity *= 2.0; // Significantly increased enzyme activity
             }
           }
         }
@@ -905,8 +944,22 @@ export class GrowthManager {
     this.tips = this.tips.filter((t) => t.life > 0);
 
     // Tip Culling to Control Performance
-    const MAX_ACTIVE_TIPS = 3000;
+    const MAX_ACTIVE_TIPS = 5000; // Increased max tips for denser growth
     if (this.tips.length > MAX_ACTIVE_TIPS) {
+      // Sort tips by distance from center to keep those most likely to form main structures
+      this.tips.sort((a, b) => {
+        // Calculate distances
+        const distA = Math.hypot(a.x - this.centerX, a.y - this.centerY);
+        const distB = Math.hypot(b.x - this.centerX, b.y - this.centerY);
+        
+        // Keep rhizomorphs and more distant tips preferentially
+        const aFactor = a.growthType === "rhizomorph" ? -100 : (a.resource > 500 ? -50 : 0);
+        const bFactor = b.growthType === "rhizomorph" ? -100 : (b.resource > 500 ? -50 : 0);
+        
+        return (distA + aFactor) - (distB + bFactor);
+      });
+      
+      // Remove least important tips
       this.tips.splice(0, this.tips.length - MAX_ACTIVE_TIPS);
     }
   }
@@ -1102,11 +1155,12 @@ export class GrowthManager {
         
       case "rhizomorph":
         // Rhizomorphs are thicker, darker, more defined transport structures
-        lineWidth = customThickness ?? (config.MAIN_LINE_WIDTH * 1.5);
-        alpha = config.MAIN_ALPHA + 0.1;
-        hue = config.BASE_HUE - 5; // Slightly warmer
-        saturation = 10 + nutrientFactor * 10;
-        lightness = calculatedLightness - 10; // Darker
+        // Significantly enhanced visibility for rhizomorphs
+        lineWidth = customThickness ?? (config.MAIN_LINE_WIDTH * 2.0); // Much thicker
+        alpha = config.MAIN_ALPHA + 0.15; // More opaque
+        hue = config.BASE_HUE - 8; // Warmer color
+        saturation = 15 + nutrientFactor * 15; // More saturated
+        lightness = calculatedLightness - 15; // Much darker for better contrast
         break;
         
       case "aerial":

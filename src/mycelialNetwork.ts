@@ -102,11 +102,20 @@ export class MycelialNetwork {
     // Increase maturity of all edges based on how much they're used
     for (const edge of this.edges) {
       // Increase maturity based on recent flow activity
-      const maturityIncrement = edge.lastFlowAmount * config.HYPHAL_MATURATION_RATE;
-      edge.maturity = Math.min(1.0, edge.maturity + maturityIncrement);
+      // Enhanced maturation rate for higher flow paths to create more distinct transport routes
+      const flowMultiplier = Math.min(3.0, 1.0 + (edge.lastFlowAmount / 50));
+      const maturityIncrement = edge.lastFlowAmount * config.HYPHAL_MATURATION_RATE * flowMultiplier;
       
-      // Update transport efficiency based on maturity
-      edge.transportEfficiency = 1.0 + (edge.maturity * (config.TRANSPORT_EFFICIENCY_FACTOR - 1.0));
+      // Apply non-linear maturation for more pronounced main transport routes
+      if (edge.maturity > 0.5) {
+        // Mature edges mature faster (positive feedback loop)
+        edge.maturity = Math.min(1.0, edge.maturity + maturityIncrement * 1.5);
+      } else {
+        edge.maturity = Math.min(1.0, edge.maturity + maturityIncrement);
+      }
+      
+      // Update transport efficiency based on maturity - exponential improvement
+      edge.transportEfficiency = 1.0 + (Math.pow(edge.maturity, 1.5) * (config.TRANSPORT_EFFICIENCY_FACTOR - 1.0));
     }
   }
 
@@ -142,13 +151,16 @@ export class MycelialNetwork {
         const connectedNode = this.nodes.get(connId);
         if (connectedNode) {
           // Only flow resources if there's a meaningful difference
-          if (node.resource > connectedNode.resource + 10) {
+          // Lowered threshold to increase flow activity
+          if (node.resource > connectedNode.resource + 5) {
             // Find the edge connecting these nodes
             const edge = this.findEdge(id, connId);
             if (edge) {
               // Calculate flow based on resource difference and edge efficiency
               const baseFlow = (node.resource - connectedNode.resource) * config.RESOURCE_FLOW_RATE;
-              const adjustedFlow = baseFlow * edge.transportEfficiency;
+              // Apply maturity bonus to transport efficiency to encourage main transport routes
+              const maturityBonus = 1 + (edge.maturity * 0.5);
+              const adjustedFlow = baseFlow * edge.transportEfficiency * maturityBonus;
               
               // Record the flow for this edge
               edge.lastFlowAmount += adjustedFlow;
